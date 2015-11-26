@@ -51,7 +51,7 @@ SoftwareSerial btSerial(SoftwareSerialRx,SoftwareSerialTx);
 
 #if NoPrint == true
 
-char btBuff[48];
+char btBuff[64];
 byte btIndex;
 //bool btUseChecksum;
 // sentense always starts with $V[c1][c2],
@@ -157,7 +157,10 @@ void btTestAvailable(void)
                 Serial.print("Bt buad:");
                 Serial.println(baudrateFromIndex(tidx));
 #endif
+
+#if BT_MODULE_INITIALIZATION == true
 					baudIndex = tidx;
+#endif
                 	return;
               	} // if K
          	}// if O
@@ -506,6 +509,11 @@ byte _btRecevingState;
 #define BtCmdPersistenceSet   BtCommandCompress('P','S')
 #define BtCmdHello   BtCommandCompress('B','M')
 
+#define BtCmdPersistenceBlockRead  BtCommandCompress('P','B')
+//#define BtCmdPersistenceBlockData   BtCommandCompress('P','D')
+#define BtCmdDisconnect  BtCommandCompress('D','C')
+
+
 //#define BtCmdQueryStatus BtCommandCompress('Q','S')
 #define BtCmdQueryBrewInfo BtCommandCompress('Q','B')
 #define BtCmdQueryBoilHopTime BtCommandCompress('Q','H')
@@ -748,6 +756,30 @@ void  btConfirmPersistence(int addr, int size,int value)
 	#endif
 }
 
+
+//$VPB,[addr],[number]*cksum
+void   btProcessPersistenceBlockRead(void)
+{
+  	int addr=readNextInt();
+  	int number= readNextInt();
+  	int value;
+  
+	btSentenceStart('P','D');
+	btSentenceInt(addr);
+  
+  	byte i;
+  	for(i=0;i< number;i++)
+  	{
+  		value=(int)readSetting(addr+i);
+			
+		btSentenceComma();
+		btSentenceInt(value);
+  	}
+	btSentenceSend();
+
+}
+
+
 //$VPR,[addr],[size]*cksum
 void   btProcessPersistenceRead(void)
 {
@@ -784,7 +816,11 @@ void   btProcessPersistenceSet(void)
 
 	btConfirmPersistence(addr,dataSize,value); 
 }
-
+void btProcessDisconnect(void)
+{
+	gIsConnected=false;
+	uiSetBtStatus(BtStateNotConnected);
+}
 //$VHB,[software name]
 // int,int, string
 void   btProcessHello(void)
@@ -796,7 +832,7 @@ void   btProcessHello(void)
 	int left=(int)(getTimeLeft()/1000);	
 	btSentenceInt(left);
 	btSentenceComma();
-	btSentenceFloat(0.3);
+	btSentenceFloat(0.4);
 	btSentenceSend();
 	#else
   	btSerial.print(F("$VBM,"));
@@ -804,7 +840,7 @@ void   btProcessHello(void)
 	btSerial.print(",");				
 	int left=(int)(getTimeLeft()/1000);	
 	btSerial.print(left);	
-	btSerial.println(",0.3"); //version
+	btSerial.println(",0.4"); //version
 	#endif
   	gIsConnected = true;
   	uiSetBtStatus(BtStateConnected);
@@ -929,7 +965,14 @@ void btProcessSentence(void)
   {
     btProcessQueryBoilHopTime();
   }
-
+  else if(commad == BtCmdPersistenceBlockRead)
+  {
+  	btProcessPersistenceBlockRead();
+  }
+  else if(commad == BtCmdDisconnect)
+  {
+  	btProcessDisconnect();
+  }
 #if BT_DEBUGTEMP == true
   else if(commad == BtCmdSetTemperature)
   {

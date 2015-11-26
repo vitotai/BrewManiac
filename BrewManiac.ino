@@ -99,16 +99,9 @@ const byte SoftwareSerialTx = 11;
 #define BT_STRICT true
 #define BT_TemperatureReportPeriod 10000
 
-#if BOARD == UNOTEST
-// 32k flash is limitted
-#define BT_AutoBaudRate false
-#define BT_MODULE_INITIALIZATION false
-#define BT_Menu false
-#else
 #define BT_AutoBaudRate true
 #define BT_MODULE_INITIALIZATION true
 #define BT_Menu true
-#endif
 
 #if BT_MODULE_INITIALIZATION != true
 #define BT_Menu false
@@ -151,7 +144,21 @@ const byte SoftwareSerialTx = 11;
 #if NoPrint == true
 #include "mystrlib.h"
 #endif
+//{debug
+//overrite definition to save some memory
+#if BOARD == UNOTEST
+#define FakeHeating true
+#define USE_DS18020 false
 
+#define SupportAutoModeRecovery false
+#define SupportManualModeCountDown false
+// 32k flash is limitted
+#define BT_AutoBaudRate true
+#define BT_MODULE_INITIALIZATION false
+#define BT_Menu false
+
+#endif
+//}debug
 // *************************
 //*  global variables
 // *************************
