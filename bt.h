@@ -16,10 +16,14 @@ boolean gIsBtModulePresent;
 boolean gIsConnected;
 
 //default baudrate is for non auto baud rate
+#if CHANG_BAUDRATE == true
 #define BT_DefaultBaudRate 9600
+#endif
+
 #define TrialNumber 2
 
-//#define BT_PreferredBaudRateIndex 1 //57600
+#define BT_PreferredBaudRateIndex 2 //57600
+
 //0---------9600 
 //1---------19200 
 //2---------38400 
@@ -123,8 +127,8 @@ long baudrateFromIndex(byte index)
 		return 115200;
 }
 
-//const int _supportedBauds[] PROGMEM ={9600,115200,57600,19200,38400};
-const byte _trialSequence[] PROGMEM ={0,4,3,1,2};
+//const int _supportedBauds[] PROGMEM ={9600,38400,57600,19200,115200};
+const byte _trialSequence[] PROGMEM ={0,2,3,1,4};
 
 void btTestAvailable(void)
 {
@@ -354,7 +358,7 @@ const char PASS[] PROGMEM ="PASS";
 const char BAUD[] PROGMEM ="BAUD";
 // setup the bt module if it has not been done 
 // NAME, PASS, connect type(pin code required?)
-/*
+#if CHANG_BAUDRATE == true
 byte btChangeBaudrate(byte index)
 {
 	//change mult
@@ -367,20 +371,13 @@ byte btChangeBaudrate(byte index)
   	idx[1]='\0';
 	atCommand(BAUD,idx);
 	// change baudrate
-	btSerial.begin(baudrateFromIndex(index));
-	while(btSerial.available())
-	{
-	 	char ch=btSerial.read();
-	 	#if SerialDebug == true
-		Serial.print(ch);
-		#endif       
-	 }
-	 
-	delay(200);
+	delay(100);
+	
+	btTestAvailable();
 	
 	return index;
 }
-*/
+#endif
 
 byte btSetUsePinCode(bool usePin)
 {
@@ -414,13 +411,13 @@ void btSetupBtModule(void)
   #if SerialDebug == true
   Serial.println("btSetupBtModule");
   #endif
-/*
+#if CHANG_BAUDRATE == true
 	if(baudIndex != BT_PreferredBaudRateIndex)
 	{
 		// change baud rate
 		baudIndex=btChangeBaudrate(BT_PreferredBaudRateIndex);
 	}
-*/
+#endif
 
     byte ret=atQuery(NAME,btNetworkName,10,false);
     
