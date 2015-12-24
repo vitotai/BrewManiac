@@ -84,7 +84,7 @@ const byte SoftwareSerialTx = 11;
 //debug
 //should be false
 #define SerialDebug false
-#define CHANG_BAUDRATE false
+#define CHANG_BAUDRATE true
 
 #if UseSoftwareSerial != true
 #define SerialDebug false
