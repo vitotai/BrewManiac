@@ -27,9 +27,11 @@
 #define UNOTEST 1
 // MRE168 is MEGA, HD44780s LCD
 #define MRE168 2
+// Setting from default Open ArdBir 
+#define Pcb_ArdBir_DanielXan 3
 //////////////////////////
 
-#define BOARD MRE168
+#define BOARD Pcb_ArdBir_DanielXan
 // not usingI2C_LCD by default 
 #define I2C_LCD false
 
@@ -37,6 +39,10 @@
 
 //hardware setup
 const byte SensorPin=7;
+#define PumpControlPin  6
+#define BuzzControlPin 8
+#define HeatControlPin  9
+
 
 #if BOARD == MRE168
 #define ButtonUpPin    A3
@@ -49,20 +55,22 @@ const byte SensorPin=7;
 
 // overwrite I2C_LCD setting
 #define I2C_LCD true
-
 #define ButtonUpPin    A2
 #define ButtonDownPin   A3
 #define ButtonStartPin  A0
 #define ButtonEnterPin  A1
 #endif
 
-#define PumpControlPin  6
-#define BuzzControlPin 8
-#define HeatControlPin  9
+
+#if BOARD == Pcb_ArdBir_DanielXan
+#define ButtonUpPin    A2
+#define ButtonDownPin   A3
+#define ButtonStartPin  A0
+#define ButtonEnterPin  A1
+#endif
 
 #define BluetoothSupported true
 #define UseSoftwareSerial true
-
 
 #if UseSoftwareSerial == true
 const byte SoftwareSerialRx = 10;
@@ -76,10 +84,12 @@ const byte SoftwareSerialTx = 11;
 //debug
 //should be false
 #define SerialDebug false
-#define CHANG_BAUDRATE true
+#define CHANG_BAUDRATE false
+
 #if UseSoftwareSerial != true
 #define SerialDebug false
 #endif
+
 // should be false
 #define FakeHeating false
 #if FakeHeating == true
@@ -92,7 +102,6 @@ const byte SoftwareSerialTx = 11;
 
 
 #define ElectronicOnly true
-
 #define PerformanceProfiling false
 
 #define NoPrint true
@@ -101,7 +110,7 @@ const byte SoftwareSerialTx = 11;
 
 #define BT_AutoBaudRate true
 #define BT_MODULE_INITIALIZATION true
-#define BT_Menu true
+#define BT_Menu false
 
 #if BT_MODULE_INITIALIZATION != true
 #define BT_Menu false
