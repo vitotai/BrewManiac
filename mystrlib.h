@@ -54,40 +54,47 @@ byte sprintFloat(char *buff,float value,byte precision)
 {
     byte len=0;
 
-	if(value <0)
-	{
-		*buff='-';
-		buff = buff +1;
-		value = 0.0- value;
-		len=1;
-	}
+    if(value <0)
+    {
+        buff[0]='-';
+	buff = buff;
+	value = 0.0- value;
+	len=1;
 
-   	int base=1;
+    }
+
+    int base=1;
     float r=0.5;
-   	for(byte p=0; p < precision; p++)
-   	{
-      	base = base * 10;
+   
+    for(byte p=0; p < precision; p++)
+    {
+        base = base * 10;
         r= r * 0.1;
-   	}
+    }
+    float number=value+ r;
 
- 	float number=value+ r;   
+
    	if (number >= 1.0) 
    	{
-     	int integer=(int)number;
-     	len +=sprintInt(buff,integer);
-     	number -= (float)integer;
+     	  int integer=(int)number;
+     	  len +=sprintInt(buff+len,integer);
+     	  number -= (float)integer;
    	}
    	else
    	{
-       	buff[0]='0';
-       	len += 1;
+       	  buff[len]='0';
+       	  len += 1;
    	}
+
+
   
    	if(precision == 0) return len;
-   	buff[len++]='.';
+   	
+    buff[len++]='.';
    
    	number = number * base;
    	len+=sprintIntDigit(buff+len,(int)number,base/10);
+
    	return len;
 }
 

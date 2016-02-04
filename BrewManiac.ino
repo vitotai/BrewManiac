@@ -2985,7 +2985,7 @@ void autoModeEnterBoiling(void)
 	uiRunningTimeShowInitial(boilTime * 60);
 	
 	uiAutoModeStage(BoilingStage);
-	uiMenu(STR(Up_Down_x_x));
+	uiMenu(STR(Up_Down_x_Pmp));
 	
 	if(readSetting(PS_PumpOnBoil)) pumpOn();
 	else pumpOff();
@@ -3911,7 +3911,16 @@ void autoModeEventHandler(byte event)
 	{
 		if(event ==ButtonPressedEventMask)
 		{
-			processAdjustButtons();
+				if (btnIsEnterPressed)
+				{
+					// pump control
+					if(gIsPumpOn) pumpOff();
+					else pumpOn();
+				}
+				else
+				{
+					processAdjustButtons();
+				}
 		}
 		else if(event ==TimeoutEventMask)
 		{
