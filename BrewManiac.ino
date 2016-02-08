@@ -159,7 +159,7 @@ const byte SoftwareSerialTx = 11;
 #define FakeHeating true
 #define USE_DS18020 false
 
-#define SupportAutoModeRecovery false
+#define SupportAutoModeRecovery true
 #define SupportManualModeCountDown false
 // 32k flash is limitted
 #define BT_AutoBaudRate true
@@ -3573,7 +3573,7 @@ void autoModeEventHandler(byte event)
 		}
 		else if(btnIsStartPressed)
 		{
-			// quite
+			// quit
 			backToMain();
 		}
 		else if(btnIsEnterPressed)
@@ -3900,8 +3900,6 @@ void autoModeEventHandler(byte event)
 			}
 			else if(btnIsEnterPressed)
 			{
-				buzzMute();
-
 				// back to main
 				backToMain();
 			}
@@ -4188,7 +4186,6 @@ void autoModeEventHandler(byte event)
 	{
 		if(event == TimeoutEventMask)
 		{
-			buzzMute();
 			backToMain();
 		}
 	}//AS_Finished
@@ -4277,7 +4274,12 @@ void backToMain(void)
 	// turn pump & heat off
 	heatOff();
 	pumpOff();
-	//buzzerOff();
+	buzzMute();
+#if SupportRunningTimeBlink == true
+
+	uiRunningTimeBlink(false); // stop blink if any. additional time print will be done
+								// however, it will be clear later, before enter "Main"
+#endif
 	//
 	switchApplication(MAIN_SCREEN);
 }
