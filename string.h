@@ -83,6 +83,10 @@ StringConst( Up_Down_x_Ok,      "UP* *DWN  ---   Ok");
 StringConst( Up_Down_Quit_Ok,   "Up   Dwn  Quit  Ok");
 StringConst( x_Down_Quit_Ok,    "---  Dwn  Quit  Ok");
 StringConst( Up_x_Quit_Ok,      "Up   ---  Quit  Ok");
+
+StringConst( Up_Down_Pause_Pmp,  "UP* *DWN Pause Pmp");
+StringConst( Up_Down_RUN_Pmp,     "UP* *DWN  RUN  Pmp");
+
 // end of menu
 
 StringConst( Manual_Mode ,"MANUAL MODE");

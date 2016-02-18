@@ -99,7 +99,7 @@ const byte SoftwareSerialTx = 11;
 #define USE_DS18020 true
 #endif
 
-
+#define DEVELOP_SETTING_VALUE false
 
 #define ElectronicOnly true
 #define PerformanceProfiling false
@@ -121,6 +121,7 @@ const byte SoftwareSerialTx = 11;
 #define SupportAutoModeRecovery true
 #define SupportManualModeCountDown true
 
+#define NoWhirlpool true
 
 #define ButtonPressedDetectMinTime 125 // in ms
 #define ButtonLongPressedDetectMinTime 1500 // in ms
@@ -268,6 +269,7 @@ void btMenuEventHandler(byte);
 #define RemoteEventAddHop 			7
 #define RemoteEventPwmOn 			8
 #define RemoteEventPwmOff 			9
+#define RemoteEventBoilFinished 	10
 
 #define RemoteEventBrewFinished 	99
 
@@ -774,7 +776,7 @@ void tpReadTemperature(void)
     gCurrentTemperature = (raw & 0xFFFC) * 0.0625;
 
     //apply calibration 
-    //gCurrentTemperature += ((float)(readSetting(PS_Offset) - 50) / 10.0);
+    gCurrentTemperature += ((float)(readSetting(PS_Offset) - 50) / 10.0);
     _isConverting = false;
   	//} 
 #endif
@@ -1265,7 +1267,10 @@ int editItemValue(void)
 {	
 	return _editingValue;
 }
-void editItem(str_t label, int value, int max, int min,void (*displayFunc)(int))
+
+
+
+void editItem(const char * label, int value, int max, int min,void (*displayFunc)(int))
 {
 	_editingValue=value;
 	_maxValue=max;
@@ -1463,7 +1468,11 @@ void settingPidEventHandler(byte)
 //*  Unit Parameters settings
 // *************************
 byte _currentUnitSetting;
+#if NoWhirlpool == true
+#define UINIT_ITEM_NUM 17
+#else
 #define UINIT_ITEM_NUM 18
+#endif
 
 void displayDegreeSymbol(int value)
 {
@@ -1522,6 +1531,8 @@ void displaySimpleTemperature(int value)
 {
 	uiSettingShowTemperature((float)value,0);
 }
+
+#if NoWhirlpool != true
 #define WhirlpoolHot 2
 #define WhirlpoolCold 1
 #define WhirlpoolOff 0
@@ -1532,6 +1543,7 @@ void displayHotColdOff(int value)
 	else if (value==WhirlpoolCold) uiSettingDisplayText(STR(Cold));
 	else uiSettingDisplayText(STR(Hot));
 }
+#endif
 
 void settingUnitDisplayItem(void)
 {
@@ -1543,7 +1555,11 @@ void settingUnitDisplayItem(void)
 	else if(_currentUnitSetting==1)
 		editItem(STR(Sensor),value,1,0,&displayInsideOutside);
 	else if(_currentUnitSetting==2)
+	#if DEVELOP_SETTING_VALUE == true	
+		editItem(STR(Temp_Boil),value,105,10,&displaySimpleTemperature);
+	#else
 		editItem(STR(Temp_Boil),value,105,90,&displaySimpleTemperature);
+	#endif
 	/*else if(_currentUnitSetting==3) 
 	// ********* skip, for internal usage always use C
  		editItem(STR(Temp_Boil),value,105,90,&displaySimpleInteger);*/
@@ -1574,8 +1590,10 @@ void settingUnitDisplayItem(void)
 		editItem(STR(Skip_Iodine),value,1,0,&displayYesNo);
 	else if(_currentUnitSetting==16)
 		editItem(STR(IodineTime),value,90,0,&displayTimeOff);
+#if NoWhirlpool != true		
 	else if(_currentUnitSetting==17)
 		editItem(STR(Whirlpool),value,2,0,&displayHotColdOff);
+#endif
 }
 
 // Initialization of the screen
@@ -2963,11 +2981,13 @@ void autoModeMashingStageFinished(void)
 // boiling stage
 
 boolean _isBoilTempReached;
+boolean _isBoilTimerPaused;
 
 void autoModeEnterBoiling(void)
 {
 	_state = AS_Boiling;
 	_isBoilTempReached=false;
+	_isBoilTimerPaused=false;
 	gBoilStageTemperature=readSetting(PS_BoilTemp);
 	//gSettingTemperature =110;//
 	gSettingTemperature = gBoilStageTemperature;
@@ -2989,8 +3009,11 @@ void autoModeEnterBoiling(void)
 	
 	if(readSetting(PS_PumpOnBoil)) pumpOn();
 	else pumpOff();
-
+	#if DEVELOP_SETTING_VALUE == true
+	setAdjustTemperature(110.0,10.0);
+	#else
 	setAdjustTemperature(110.0,80.0);
+	#endif
 	_isEnterPwm =false;
 	heatOn();
 	#if BluetoothSupported == true
@@ -3009,9 +3032,9 @@ void autoModeShowHopAdding(void)
 	uiAutoModeShowHopNumber(readSetting(PS_NumberOfHops) - _numHopToBeAdded +1);
 }
 
-#define AUX_TIMER_HOP 1
+//#define AUX_TIMER_HOP 1
 
-#ifdef AUX_TIMER_HOP // try use Aux timer for HOP
+//#ifdef AUX_TIMER_HOP // try use Aux timer for HOP
 
 bool recoveryTimer;
 
@@ -3031,22 +3054,30 @@ void autoModeAddHopNotice(void)
 			#endif			
 }
 
+unsigned long _remainingBoilTime;
 
-void autoModeStartBoilingTimer(void)
+void autoModeReStartBoilingTimer(void)
 {
+	#if SerialDebug == true
+	Serial.print("Boil time:");
+	Serial.println(_remainingBoilTime);
+	Serial.print("_numHopToBeAdded:");
+	Serial.println(_numHopToBeAdded);
+	#endif
+
+
 	// [IMPORTANT!] cast to (unsigned long) is needed
-	// NO hop adding. just start last before 
 
-	byte boilTime=readSetting(PS_BoilTime);
-	_numHopToBeAdded =  readSetting(PS_NumberOfHops);
-
-	tmSetTimeoutAfter((unsigned long)boilTime * 60 *1000);
+	tmSetTimeoutAfter(_remainingBoilTime);
 			
 	if(_numHopToBeAdded > 0)
 	{
-		byte nextHopTime=boilTime - readSetting(PS_TimeOfHop(0));
-		
-		if(nextHopTime == 0)
+		byte idx=readSetting(PS_NumberOfHops) - _numHopToBeAdded;
+	
+		unsigned long nextHopTime=(unsigned long)readSetting(PS_TimeOfHop(idx))
+									* 60 * 1000;
+		unsigned long nextHopTimeout=_remainingBoilTime - nextHopTime;
+		if(nextHopTimeout == 0)
 		{
 			// alert directly, start timer to restore
 			autoModeAddHopNotice();			
@@ -3054,107 +3085,71 @@ void autoModeStartBoilingTimer(void)
 		else
 		{
 			recoveryTimer = false;
-			tmSetAuxTimeoutAfter((unsigned long)nextHopTime * 60 * 1000);
+			tmSetAuxTimeoutAfter(nextHopTimeout);
 		}
 	}
 }
 
+void autoModeStartBoilingTimer(void)
+{
+	// [IMPORTANT!] cast to (unsigned long) is needed
+	// NO hop adding. just start last before 
+
+	byte boilTime=readSetting(PS_BoilTime);
+
+	_remainingBoilTime= (unsigned long)boilTime * 60 *1000;
+	
+	_numHopToBeAdded =  readSetting(PS_NumberOfHops);
+
+	autoModeReStartBoilingTimer();
+}
+
+
 void autoModeStartNextHopTimer(void)
 {
-	// it is done at timer expires :_numHopToBeAdded--;
+	// it is done at hop timer expires :_numHopToBeAdded--;
+	// this function is called after Screen is restored.(restore timer expires)
 	
-	byte currentHopIdx=readSetting(PS_NumberOfHops) - _numHopToBeAdded -1;
-	byte currentHopTime=readSetting(PS_TimeOfHop(currentHopIdx));
+	byte lastHopIdx=readSetting(PS_NumberOfHops) - _numHopToBeAdded -1;
 
 	
 	if(_numHopToBeAdded > 0) // there are next timer
 	{
-		byte nextHopTime= readSetting(PS_TimeOfHop(currentHopIdx+1));
+		byte lastHopTime=readSetting(PS_TimeOfHop(lastHopIdx));
 		
-		tmSetAuxTimeoutAfter(((unsigned long)(currentHopTime - nextHopTime) * 60 
+		byte nextHopTime= readSetting(PS_TimeOfHop(lastHopIdx+1));
+		
+		tmSetAuxTimeoutAfter(((unsigned long)(lastHopTime - nextHopTime) * 60 
 								-HOP_ALTERTING_TIME)* 1000);
 		recoveryTimer = false;
 	}
 }
 
 
-#else
-
-void autoModeAddHopNotice(void)
+void autoModeBoilingPauseHandler(void)
 {
-			
-			// the first hop is added at the time boiling starts
-			tmSetAuxTimeoutAfter(HOP_ALTERTING_TIME * 1000);
-			
-			autoModeShowHopAdding();
-			_numHopToBeAdded --;
-			buzzPlaySound(SoundIdAddHop);
-			
-			#if BluetoothSupported == true
-			btReportEvent(RemoteEventAddHop);
-			#endif			
-}
-
-// the first timer
-void autoModeStartBoilingTimer(void)
-{
-	_numHopToBeAdded =  readSetting(PS_NumberOfHops);
-	
-	byte boilTime=readSetting(PS_BoilTime);
-		
-	if(_numHopToBeAdded > 0)
+	if(_isBoilTimerPaused)
 	{
-		byte nextHopTime=boilTime - readSetting(PS_TimeOfHop(0));
-		
-		if(nextHopTime == 0)
-		{
-			// alert directly, start timer to restore
-			autoModeAddHopNotice();
-			
-			// we need to get next hop, or timer
-			autoModeStartNextHopTimer();
-		}
-		else
-		{
-			tmSetTimeoutAfter((unsigned long)nextHopTime * 60 * 1000);
-		}
+		// resume
+		uiMenu(STR(Up_Down_Pause_Pmp));
+		uiRunningTimeStartCountDown(_remainingBoilTime/1000);
+		autoModeReStartBoilingTimer();
+
 	}
 	else
 	{
-		// [IMPORTANT!] cast to (unsigned long) is needed
-		// NO hop adding. just start last before 
-		tmSetTimeoutAfter((unsigned long)boilTime * 60 *1000);
+		// to pause boiling timer only
+		uiRunningTimeStop();
+		_remainingBoilTime=tmPauseTimer();
+		// in case hop reminder is running. restore the screen
+		uiAutoModeStage(BoilingStage);
+		uiMenu(STR(Up_Down_RUN_Pmp));
 	}
+	_isBoilTimerPaused = ! _isBoilTimerPaused;
 }
 
-void autoModeStartNextHopTimer(void)
-{
-	// it is done at timer expires :_numHopToBeAdded--;
-	
-	
-	byte currentHopIdx=readSetting(PS_NumberOfHops) - _numHopToBeAdded -1;
-	byte currentHopTime=readSetting(PS_TimeOfHop(currentHopIdx));
+//#endif
 
-#if 0 // SerialDebug == true
-	Serial.print(F("autoModeStartNextHopTimer _numHopToBeAdded:"));
-	Serial.print(_numHopToBeAdded);
-	Serial.print(F(" ,currentHopIdx="));
-	Serial.println(currentHopIdx);
-#endif
-	
-	if(_numHopToBeAdded > 0) // there are next timer
-	{
-		byte nextHopTime= readSetting(PS_TimeOfHop(currentHopIdx+1));
-		
-		tmSetTimeoutAfter((unsigned long)(currentHopTime - nextHopTime)* 60 * 1000);
-	}
-	else
-	{
-		// NO other hop adding. just start last before 
-		tmSetTimeoutAfter((unsigned long)currentHopTime * 60 *1000);
-	}
-}
-#endif
 //******************************
 #if NoDelayStart == false
 // unit is 15 min, use 12 hour, 
@@ -3218,7 +3213,7 @@ void autoModeEnterCooling(void)
 	btReportCurrentStage(StageCooling);	
 	#endif	
 }
-
+#if NoWhirlpool != true
 #define MAX_WHIRLPOOL_TIME 10
 #define MIN_WHIRLPOOL_TIME 1
 
@@ -3283,6 +3278,7 @@ void autoModeWhirlpoolFinish(void)
 	}
 
 }
+#endif
 
 #define BREW_END_STAY_DURATION 5
 
@@ -3310,12 +3306,14 @@ void autoModeBrewEnd(void)
 
 void autoModeCoolingFinish(void)
 {
+#if NoWhirlpool != true
 	if(readSetting(PS_Whirlpool) == WhirlpoolCold)
 	{
 		_state = AS_Whirlpool;
 		autoModeCoolingAsk(STR(WHIRLPOOL));
 	}
 	else
+#endif
 	{
 		autoModeBrewEnd();
 	}
@@ -3915,6 +3913,13 @@ void autoModeEventHandler(byte event)
 					if(gIsPumpOn) pumpOff();
 					else pumpOn();
 				}
+				else if(btnIsStartPressed)
+				{
+					if(_isBoilTempReached)
+					{
+						autoModeBoilingPauseHandler();
+					}
+				}
 				else
 				{
 					processAdjustButtons();
@@ -3922,7 +3927,7 @@ void autoModeEventHandler(byte event)
 		}
 		else if(event ==TimeoutEventMask)
 		{
-#ifdef AUX_TIMER_HOP
+//#ifdef AUX_TIMER_HOP
 			if(IsAuxTimeout)
 			{
 				// start next timer to end notice of hop adding	
@@ -3949,6 +3954,13 @@ void autoModeEventHandler(byte event)
 					heatOff(); // heat OFF
 					pumpOff();
 					
+					
+					#if BluetoothSupported == true
+					btReportEvent(RemoteEventBoilFinished);
+					#endif
+					buzzPlaySoundRepeat(SoundIdWaitUserInteraction);
+										
+					#if NoWhirlpool != true
 					if(readSetting(PS_Whirlpool) == WhirlpoolHot)
 					{
 						_state = AS_Whirlpool;
@@ -3959,42 +3971,13 @@ void autoModeEventHandler(byte event)
 						_state = AS_Cooling;
 						autoModeCoolingAsk(STR(START_COOLING));
 					}
+					#else
+						_state = AS_Cooling;
+						autoModeCoolingAsk(STR(START_COOLING));					
+					#endif
 			}
 
-#else
-			if(IsAuxTimeout)
-			{
-				// start next timer to end notice of hop adding	
-				uiAutoModeStage(BoilingStage);
-			}
-			else
-			{
-				// timeout of hop or boil timer
-				if(_numHopToBeAdded == 0)
-				{
-					// next stage
-					heatOff(); // heat OFF
-					pumpOff();
-					
-					if(readSetting(PS_Whirlpool) == WhirlpoolHot)
-					{
-						_state = AS_Whirlpool;
-						autoModeCoolingAsk(STR(WHIRLPOOL));
-					}
-					else
-					{
-						_state = AS_Cooling;
-						autoModeCoolingAsk(STR(START_COOLING));
-					}
-				}
-				else
-				{
-				    // show hop, and start restoreboilingtimer
-					autoModeAddHopNotice();
-					autoModeStartNextHopTimer();
-				}	
-			}
-#endif
+//#endif
 		}
 		else // if(event ==TemperatureMask)
 		{
@@ -4014,7 +3997,7 @@ void autoModeEventHandler(byte event)
 					#endif
 
 					_isBoilTempReached=true;
-
+					
 					//buzz temperature reach first
 					// because later "add hop" buzz may interrupt
 					// it
@@ -4024,6 +4007,8 @@ void autoModeEventHandler(byte event)
 					uiRunningTimeStartCountDown((unsigned long)boilTime *60);
 					// start hop & boiling out timer
 					autoModeStartBoilingTimer();				
+
+					uiMenu(STR(Up_Down_Pause_Pmp));
 				}
 			}
 		}
@@ -4065,6 +4050,7 @@ void autoModeEventHandler(byte event)
 		{
 			// wait confirm
 			if(event != ButtonPressedEventMask) return;
+			buzzMute();
 			if(btnIsStartPressed)
 			{
 				// yes
@@ -4078,6 +4064,7 @@ void autoModeEventHandler(byte event)
 			}
 		} // end of else of if(_stageConfirm)
 	} //AS_Cooling
+#if NoWhirlpool != true
 	else if(AutoStateIs(AS_Whirlpool))
 	{
 		if(_stageConfirm)
@@ -4123,6 +4110,7 @@ void autoModeEventHandler(byte event)
 				// counting time & running pump
 				if(event == ButtonPressedEventMask)
 				{			
+	
 					if(btnIsStartPressed)
 					{
 						if(!_pumpRunning)
@@ -4168,6 +4156,9 @@ void autoModeEventHandler(byte event)
 		{
 			// wait confirm
 			if(event != ButtonPressedEventMask) return;
+
+			buzzMute();
+
 			if(btnIsStartPressed)
 			{
 				// yes
@@ -4182,6 +4173,7 @@ void autoModeEventHandler(byte event)
 		} // of else // if(_stageConfirm)
 
 	}//AS_Whirlpool
+#endif
 	else if(AutoStateIs(AS_Finished))
 	{
 		if(event == TimeoutEventMask)
