@@ -1275,6 +1275,9 @@ void editItem(const char * label, int value, int max, int min,void (*displayFunc
 	_editingValue=value;
 	_maxValue=max;
 	_minValue=min;
+
+	if( _editingValue > _maxValue) _editingValue=_maxValue;
+	if( _editingValue < _minValue) _editingValue=_minValue;
 	_displayFunc=displayFunc;
 	
 	// uiClearSettingRow();

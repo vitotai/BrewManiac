@@ -12,8 +12,10 @@
 #ifndef MY_STRING_LIB
 #define MY_STRING_LIB
 
+
 byte sprintIntDigit(char *buff, int number,int base)
 {
+ 
     byte indx=0;
     while (base > 1)
     {
@@ -23,7 +25,7 @@ byte sprintIntDigit(char *buff, int number,int base)
     	base = base /10;
 
     }
-	buff[indx++]=('0' + number);
+	  buff[indx++]=('0' + number);
    	return indx;
 }
 
@@ -41,14 +43,17 @@ byte sprintInt(char *buff,int number)
 	
   	if(number >= 10)
   	{
-    	while( number >= base)
-    	{
-     		base = base * 10;
-    	}
-    	base = base /10;
+      int cb=number;
+      while(cb > 9)
+      {
+         cb = cb / 10;
+    	  base = base *10;
+      }
  	}
+ 
  	return sign+sprintIntDigit(buff,number,base);
 }
+
 
 byte sprintFloat(char *buff,float value,byte precision)
 {
@@ -60,7 +65,6 @@ byte sprintFloat(char *buff,float value,byte precision)
 	buff = buff;
 	value = 0.0- value;
 	len=1;
-
     }
 
     int base=1;
@@ -75,10 +79,13 @@ byte sprintFloat(char *buff,float value,byte precision)
 
 
    	if (number >= 1.0) 
-   	{
+   	{     	  
      	  int integer=(int)number;
+
      	  len +=sprintInt(buff+len,integer);
      	  number -= (float)integer;
+
+
    	}
    	else
    	{
@@ -86,11 +93,10 @@ byte sprintFloat(char *buff,float value,byte precision)
        	  len += 1;
    	}
 
-
   
    	if(precision == 0) return len;
    	
-    buff[len++]='.';
+       buff[len++]='.';
    
    	number = number * base;
    	len+=sprintIntDigit(buff+len,(int)number,base/10);
