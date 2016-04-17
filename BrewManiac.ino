@@ -81,6 +81,8 @@ const byte SoftwareSerialTx = 11;
 //*  software Configuration
 // *************************
 
+#define MANUAL_PUMP_MASH true
+
 //debug
 //should be false
 #define SerialDebug false
@@ -189,7 +191,9 @@ byte gBoilHeatOutput;
 boolean gIsHeatOn;
 boolean gIsPumpOn;
 boolean gIsUseFahrenheit;
-
+#if MANUAL_PUMP_MASH == true
+boolean gManualPump;
+#endif
 // *************************
 //*  function declaration
 // *************************
@@ -513,6 +517,7 @@ void btnInitialize(void)
 #define btnIsEnterPressed (gButtonPressed == ButtonEnterMask)
 #define btnIsStartPressed (gButtonPressed == ButtonStartMask)
 
+#define btnIsStartLongPressed ((gButtonPressed == ButtonStartMask) && gLongPressed)
 #define btnIsEnterLongPressed ((gButtonPressed == ButtonEnterMask) && gLongPressed)
 
 #define btnIsUpContinuousPressed (gButtonPressed == (ButtonUpMask<<4))
@@ -1081,6 +1086,8 @@ void pumpLoadParameters(void)
 #endif
 }
 
+
+
 void pumpOff(void)
 {
 	if(!gIsPumpOn) return;
@@ -1097,6 +1104,16 @@ void pumpOn(void)
 	
 	pumpPhysicalOn();
 }
+
+#if MANUAL_PUMP_MASH == true
+void togglePump(void)
+{
+	if(gIsPumpOn)
+		pumpOff();
+	else
+		pumpOn();
+}
+#endif
 
 void pumpRestSetEnabled(boolean enable)
 {
@@ -2629,8 +2646,11 @@ void autoModeEnterMashIn(void)
 	uiDisplaySettingTemperature(gSettingTemperature);
 	uiTempDisplaySetPosition(TemperatureAutoModePosition);
 
+	#if MANUAL_PUMP_MASH == true
+	uiMenu(STR(Up_Down_Pause_Pmp));
+	#else
 	uiMenu(STR(Up_Down_Pause_x));
-
+	#endif
 	// start pump, if request,
 	
 	if(readSetting(PS_PumpPreMash)) pumpOn();
@@ -2756,7 +2776,11 @@ void autoModeNextMashingStep(void)
 	gSettingTemperature = TempFromStorage(readSettingWord(PS_StageTemperatureAddr(_mashingStep)));	
 	uiDisplaySettingTemperature(gSettingTemperature);
 	
+	#if	MANUAL_PUMP_MASH == true
+	uiMenu(STR(Up_Down_PmPus_STP));
+	#else
 	uiMenu(STR(Up_Down_Pause_STP));
+	#endif
 	_mashingTemperatureReached=false;
 
 	if(isPumpRest())
@@ -2765,6 +2789,10 @@ void autoModeNextMashingStep(void)
 	}
 	pumpRestSetEnabled(false);
 	
+#if	MANUAL_PUMP_MASH == true
+	if(!gManualPump)
+	{
+#endif
 	if(_mashingStep <=6)
 	{
 		// pump is off at the time AddMalt
@@ -2776,6 +2804,10 @@ void autoModeNextMashingStep(void)
 		if(readSetting(PS_PumpOnMashOut)) pumpOn();
 		else pumpOff();
 	}
+
+#if	MANUAL_PUMP_MASH == true
+	}
+#endif
 
 	#if BluetoothSupported == true
 	btReportCurrentStage(_mashingStep);
@@ -2789,6 +2821,11 @@ void autoModeEnterMashing(void)
 
 	_askingSkipMashingStage = false;
 	_mashingStep = 0; // 0 is mash in , real mashing starts from 1
+
+#if	MANUAL_PUMP_MASH == true
+	gManualPump=false;
+#endif
+
 	autoModeNextMashingStep();
 }
 
@@ -2937,11 +2974,17 @@ void autoModeExitPause(void)
 	}
 		
 	// menu is different for mashin & mashing
+#if MANUAL_PUMP_MASH == true
+	if(_state == AS_MashIn)
+		uiMenu(STR(Up_Down_Pause_Pmp));
+	else
+		uiMenu(STR(Up_Down_PmPus_STP));
+#else
 	if(_state == AS_MashIn)
 		uiMenu(STR(Up_Down_Pause_x));
 	else
 		uiMenu(STR(Up_Down_Pause_STP));
-		
+#endif		
 	// restore heating and pump
 	if(_savedHeating) heatOn();
 	if(_savedPump) pumpOn();
@@ -3669,6 +3712,12 @@ void autoModeEventHandler(byte event)
 			{
 				autoModePause(0);
 			}
+#if MANUAL_PUMP_MASH == true
+			else if(btnIsEnterPressed)
+			{
+				togglePump();
+			}
+#endif
 			else
 			{
 				//for up/down
@@ -3754,7 +3803,11 @@ void autoModeEventHandler(byte event)
 				{
 					// NO
 					uiClearPrompt();
+					#if	MANUAL_PUMP_MASH == true
+					uiMenu(STR(Up_Down_PmPus_STP));
+					#else
 					uiMenu(STR(Up_Down_Pause_STP));
+					#endif
 					// unwind the change
 					uiRunningTimeHide(false);
 					_askingSkipMashingStage = false;					
@@ -3764,6 +3817,12 @@ void autoModeEventHandler(byte event)
 			// else
 			if(btnIsStartPressed)
 			{
+
+			#if	MANUAL_PUMP_MASH == true
+				if(btnIsStartLongPressed)
+				{
+			#endif
+
 				// if in 
 				if(_mashingTemperatureReached)
 				{
@@ -3775,6 +3834,14 @@ void autoModeEventHandler(byte event)
 				{
 					autoModePause(0);
 				}
+			#if	MANUAL_PUMP_MASH == true
+				}
+				else
+				{
+					togglePump();
+					gManualPump = true;
+				}
+			#endif			
 			}
 			else if(btnIsEnterPressed)
 			{
@@ -3812,8 +3879,12 @@ void autoModeEventHandler(byte event)
 			}
 			else
 			{
-				// back from rese
+				// back from rest
+				#if MANUAL_PUMP_MASH == true
+				uiMenu(STR(Up_Down_PmPus_STP));
+				#else
 				uiMenu(STR(Up_Down_Pause_STP));
+				#endif
 				heatOn();
 			}
 		}

@@ -15,8 +15,8 @@
 #define StringConst(v,c) const char C_##v[]  PROGMEM = c
 #define STR(v) C_##v
 
-typedef const char* str_t;
-
+//typedef const char* str_t;
+#define str_t const char*
 
 StringConst(BT_Setup,"Bluetooth");
 StringConst(BT_NetworkName,"Name");
@@ -76,6 +76,9 @@ StringConst( x_x_Ok_x,          "---  ---   Ok  ---");
 
 StringConst( Up_Down_Heat_Pmp,  "UP* *DWN Heat Pmp");
 StringConst( Up_Down_Pause_STP, "UP* *DWN Pause STP");
+
+StringConst( Up_Down_PmPus_STP, "UP* *DWN PmPus STP");
+
 StringConst( Up_Down_Pause_x,   "UP* *DWN Pause ---");
 StringConst( Up_Down_Skip_Ok,   "UP* *DWN Skip   Ok");
 StringConst( Up_Down_x_Ok,      "UP* *DWN  ---   Ok");
@@ -86,6 +89,7 @@ StringConst( Up_x_Quit_Ok,      "Up   ---  Quit  Ok");
 
 StringConst( Up_Down_Pause_Pmp,  "UP* *DWN Pause Pmp");
 StringConst( Up_Down_RUN_Pmp,     "UP* *DWN  RUN  Pmp");
+
 
 // end of menu
 

@@ -685,23 +685,26 @@ void   btProcessBrewSet(void)
 	byte stage;
 	float temp;
 	byte time;
+
+	while(_processIndex < _bufferIndex)
+	{
 		
-  	stage=readNextInt();
-  	temp=readNextFloat();
-  	time=readNextInt();
+  		stage=readNextInt();
+  		temp=readNextFloat();
+  		time=readNextInt();
   		
-  	if(stage <=7)
-  	{
-		if(stage ==0) time=1; // always use 1 as MashIn time
-		else if(stage >= 6)  // stage 6 & 7 are mandatory
-		{	
-				if (time ==0)
-					time =1;
-		}
-  		updateSetting(PS_StageTimeAddr(stage),time);
-  		if(time > 0 || stage ==0)
+  		if(stage <=7)
+  		{
+			if(stage ==0) time=1; // always use 1 as MashIn time
+			else if(stage >= 6)  // stage 6 & 7 are mandatory
+			{	
+				if (time ==0)	time =1;
+			}
+  			updateSetting(PS_StageTimeAddr(stage),time);
+  			if(time > 0 || stage ==0)
   				updateSettingWord(PS_StageTemperatureAddr(stage),ToTempInStorage(temp));
 
+		}
 	}
 	btReportBrewStage(stage);
 }
