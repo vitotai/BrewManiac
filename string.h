@@ -15,22 +15,23 @@
 #define StringConst(v,c) const char C_##v[]  PROGMEM = c
 #define STR(v) C_##v
 
+#define DefineButtonLabel(N,S,v) const byte BtnLabelId_##N=v; const char BtnLabel_##N[] PROGMEM = S
+#define ButtonLabel(N) BtnLabelId_##N,BtnLabel_##N
+
 //typedef const char* str_t;
 #define str_t const char*
+
+StringConst(IpAddress,"IP:");
 
 StringConst(BT_Setup,"Bluetooth");
 StringConst(BT_NetworkName,"Name");
 StringConst(BT_UsePin,"Use PIN");
 StringConst(BT_PIN,"PIN:");
 
-StringConst( x_x_x_Ok,          "---  ---  ---  Ok");
-StringConst( x_x_Edit_Ok,       "---  ---  Edit Ok");
-StringConst( Up_Down_Next_x,    "UP   DWN   >>  ---");
-StringConst( Up_Down_Done_x,    "UP   DWN  Done ---");
 
 StringConst(min,"min");
 
-StringConst( welcome,"BrewManiac 0.01""\xE0");
+StringConst( welcome,"BrewManiac 0.6""\xE0");
 
 #if NoDelayStart == false
 StringConst(To_be_started_in,"To be started in");
@@ -59,37 +60,43 @@ StringConst(Finished,"Finished");
 
 //button labels
 #if NoDelayStart == false
-StringConst( x_x_Quit_Go,"         Quit  Go");
+DefineButtonLabel( x_x_Quit_Go,       "          Quit  Go",0);
 #endif
-StringConst( No_Yes,            "            No Yes");
-StringConst( Manual_Auto_Setup, "---  MAN AUTO SETUP");
-StringConst( _Pump_Rest_,       " -  Pump  Rest  -  ");
-StringConst( Continue_Yes_x,    "Continue: Yes ---");
-StringConst( Continue_Yes_No,   "Continue: Yes  No");
+DefineButtonLabel( x_x_x_Ok,          "---  ---  ---   Ok",1);
+DefineButtonLabel( x_x_Edit_Ok,       "---  ---  Edit  Ok",2);
+DefineButtonLabel( Up_Down_Next_x,    "UP   DWN   >>  ---",3);
+DefineButtonLabel( Up_Down_Done_x,    "UP   DWN  Done ---",4);
 
-StringConst( x_x_x_Pmp,         "--* *--  ---  Pmp");
-StringConst( x_x_Time_Pmp,      "--* *--  Tme  Pmp");
-StringConst( Up_Down_x_Pmp,     "UP* *DWN  ---  Pmp");
-StringConst( Up_Down_x_x,       "UP* *DWN  ---  ---");
-StringConst( x_x_Exit_x,        "---  ---  Exit ---");
-StringConst( x_x_Ok_x,          "---  ---   Ok  ---");
+DefineButtonLabel( No_Yes,            "            No Yes",5);
+DefineButtonLabel( Manual_Auto_Setup, "--- MAN AUTO SETUP",6);
+DefineButtonLabel( _Pump_Rest_,       " -  Pump  Rest  - ",7);
+DefineButtonLabel( Continue_Yes_x,    "Continue: Yes ---",8);
+DefineButtonLabel( Continue_Yes_No,   "Continue: Yes  No",9);
 
-StringConst( Up_Down_Heat_Pmp,  "UP* *DWN Heat Pmp");
-StringConst( Up_Down_Pause_STP, "UP* *DWN Pause STP");
+DefineButtonLabel( x_x_x_Pmp,         "--* *--  ---  Pmp",10);
+DefineButtonLabel( x_x_Time_Pmp,      "--* *--  Tme  Pmp",11);
+DefineButtonLabel( Up_Down_x_Pmp,     "UP* *DWN  ---  Pmp",12);
+DefineButtonLabel( Up_Down_x_x,       "UP* *DWN  ---  ---",13);
+DefineButtonLabel( x_x_Exit_x,        "---  ---  Exit ---",14);
+DefineButtonLabel( x_x_Ok_x,          "---  ---   Ok  ---",15);
 
-StringConst( Up_Down_PmPus_STP, "UP* *DWN PmPus STP");
+DefineButtonLabel( Up_Down_END_Pmp,   "UP* *DWN  END  Pmp",16);
 
-StringConst( Up_Down_Pause_x,   "UP* *DWN Pause ---");
-StringConst( Up_Down_Skip_Ok,   "UP* *DWN Skip   Ok");
-StringConst( Up_Down_x_Ok,      "UP* *DWN  ---   Ok");
+DefineButtonLabel( Up_Down_Heat_Pmp,  "UP* *DWN Heat Pmp",17);
+DefineButtonLabel( Up_Down_Pause_STP, "UP* *DWN Pause STP",18);
 
-StringConst( Up_Down_Quit_Ok,   "Up   Dwn  Quit  Ok");
-StringConst( x_Down_Quit_Ok,    "---  Dwn  Quit  Ok");
-StringConst( Up_x_Quit_Ok,      "Up   ---  Quit  Ok");
+DefineButtonLabel( Up_Down_PmPus_STP, "UP* *DWN PmPus STP",19);
 
-StringConst( Up_Down_Pause_Pmp,  "UP* *DWN Pause Pmp");
-StringConst( Up_Down_RUN_Pmp,     "UP* *DWN  RUN  Pmp");
+DefineButtonLabel( Up_Down_Pause_x,   "UP* *DWN Pause ---",20);
+DefineButtonLabel( Up_Down_Skip_Ok,   "UP* *DWN Skip   Ok",21);
+DefineButtonLabel( Up_Down_x_Ok,      "UP* *DWN  ---   Ok",22);
 
+DefineButtonLabel( Up_Down_Quit_Ok,   "Up   Dwn  Quit  Ok",23);
+DefineButtonLabel( x_Down_Quit_Ok,    "---  Dwn  Quit  Ok",24);
+DefineButtonLabel( Up_x_Quit_Ok,      "Up   ---  Quit  Ok",25);
+
+DefineButtonLabel( Up_Down_Pause_Pmp, "UP* *DWN Pause Pmp",26);
+DefineButtonLabel( Up_Down_RUN_Pmp,   "UP* *DWN  RUN  Pmp",27);
 
 // end of menu
 

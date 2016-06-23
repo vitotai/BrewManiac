@@ -28,6 +28,7 @@ byte _uiTpDisplayRow;
 byte _uiTpDisplayCol;
 boolean _uiDisplayTemperature;
 
+
 //boolean _uiShowCountingTime;
 #define COUNTING_PAUSE 0
 #define COUNTING_UP 1
@@ -37,26 +38,38 @@ byte _countingTimeDirection;
 unsigned long _countingTimeRef;
 unsigned long _countingTimeDisplay;
 
-const byte BluetoothSymbol[8] PROGMEM ={
+int getDisplayTime(byte *counting){
+	*counting =_countingTimeDirection;
+	return (int)_countingTimeDisplay;
+}
 
-	B00110,
-	B10101,
-	B01101,
-	B00110,
-	B01110,
-	B10101,
-	B00101,
-	B00110};
-	
-const byte RevBluetoothSymbol[8] PROGMEM ={
-	B00010,
-	B00100,
-	B01000,
-	B11111,
-	B00010,
-	B00100,
-	B01000,
-	B00000};
+#if BluetoothSupported == true
+const byte WirelessSymbol[8] PROGMEM ={B00110,B10101,B01101,B00110,B01110,B10101,B00101,B00110};
+const byte ConnectedSymbol[8] PROGMEM ={B00010,B00100,B01000,B11111,B00010,B00100,B01000,B00000};
+#endif
+
+#if WiFiSupported == true
+/*
+const byte WirelessDisconnectedSymbol[8] PROGMEM ={
+B10000,
+B01110,
+B11001,
+B00100,
+B01110,
+B00010,
+B00101,
+B00000}; */
+const byte WirelessSymbol[8] PROGMEM ={
+B00000,
+B01110,
+B10001,
+B00100,
+B01010,
+B00000,
+B00100,
+B00000};
+
+#endif
 
 const byte CelsiusSymbol[8]  PROGMEM  = {B01000, B10100, B01000, B00111, B01000, B01000, B01000, B00111};  // [0] degree c sybmol 
 const byte FahrenheitSymbol[8] PROGMEM = {B01000, B10100, B01000, B00111, B00100, B00110, B00100, B00100};  // [0] degree f symbol
@@ -65,23 +78,8 @@ const byte SetpointSymbol[8]  PROGMEM  = {B11100, B10000, B11100, B00111, B11101
 
 const byte PumpSymbol[8]  PROGMEM  = {B00000, B01110, B01010, B01110, B01000, B01000, B01000, B00000};  // [3] Pump Symbol 
 const byte RevPumpSymbol[8] PROGMEM = {B11111, B10001, B10101, B10001, B10111, B10111, B10111, B11111};  // [4] Reverse PUMP Symbol
-const byte HeatingSymbol[8] PROGMEM   = {	
-	B00000, 
-	B01010, 
-	B01010, 
-	B01110, 
-	B01110, 
-	B01010, 
-	B01010, 
-	B00000};  // [5] HEAT symbol
-const byte RevHeatingSymbol[8] PROGMEM = {B11111, 
-	B10101, 
-	B10101, 
-	B10001, 
-	B10001, 
-	B10101, 
-	B10101, 
-	B11111};  // [6] reverse HEAT symbol
+const byte HeatingSymbol[8] PROGMEM   = {	B00000, B01010, B01010, B01110, B01110, B01010, B01010, B00000};  // [5] HEAT symbol
+const byte RevHeatingSymbol[8] PROGMEM = {B11111, B10101, B10101, B10001, B10001, B10101, B10101, B11111};  // [6] reverse HEAT symbol
 
 //byte Language[8]  PROGMEM   = {B00000, B10111, B10101, B11101, B00000, B10001, B10101, B11111};  // [7] ESP symbol
 
@@ -94,7 +92,7 @@ const byte RevHeatingSymbol[8] PROGMEM = {B11111,
 #define LcdCharHeating 4
 #define LcdCharRevHeating 5
 
-#define LcdCharBluetooth 6
+#define LcdCharWireless 6
 
 #define LcdCharReserved 7
 #define CreatecCustomChar(buff,idx,bm) uiGetBitmap(buff,bm); lcd.createChar(idx,buff)
@@ -103,12 +101,22 @@ void uiGetBitmap(byte *dst,const byte *addr);
 
 byte _uibuffer[21];
 
-#if BluetoothSupported == true
-boolean _btConnectedIconLoaded;
+#if WirelessSupported == true
+//boolean _wiConnectedIconLoaded;
+#endif
+
+#if WiFiSupported == true
+byte ipAddress[4];
+bool ipSet;
 #endif
 
 void uiInitialize(void)
 {
+
+#if WiFiSupported == true
+	ipSet = false;
+#endif
+	
 	//byte bitmapBuffer[8];
 	
    	_uiTpDisplayRow=false;
@@ -131,9 +139,9 @@ void uiInitialize(void)
    	CreatecCustomChar(_uibuffer,LcdCharRevPump,RevPumpSymbol);
    	CreatecCustomChar(_uibuffer,LcdCharHeating,HeatingSymbol);
    	CreatecCustomChar(_uibuffer,LcdCharRevHeating,RevHeatingSymbol);
-#if BluetoothSupported == true
-   	CreatecCustomChar(_uibuffer,LcdCharBluetooth,BluetoothSymbol);
-   	_btConnectedIconLoaded=false;
+#if WirelessSupported == true
+   	CreatecCustomChar(_uibuffer,LcdCharWireless,WirelessSymbol);
+//   	_wiConnectedIconLoaded=false;
 #endif
 }
 //********************************************************
@@ -167,50 +175,6 @@ int numberOfDigitFloat(float number,int precision)
 }
 
 #endif
-//********************************************************
-//* BT
-//********************************************************
-
-#if BluetoothSupported == true
-
-#define BtStateNoModule 0
-#define BtStateNotConnected 1
-#define BtStateConnected 2
-byte _btStatus;
-
-void uiDisplayBtIcon(void)
-{
-	lcd.setCursor(19,0);
-	if(_btStatus == 0)
-		lcd.write(' ');
-	else if(_btStatus == 1)
-	{
-		if(_btConnectedIconLoaded)
-		{
-	   		CreatecCustomChar(_uibuffer,LcdCharBluetooth,BluetoothSymbol);
-   			_btConnectedIconLoaded=false;
-   		}
-		lcd.write(LcdCharBluetooth);
-	}
-	else // ==2
-	{
-		if(!_btConnectedIconLoaded)
-		{
-	   		CreatecCustomChar(_uibuffer,LcdCharBluetooth,RevBluetoothSymbol);
-   			_btConnectedIconLoaded=true;
-   		}
-		lcd.write(LcdCharBluetooth);
-	}
-}
-
-
-void uiSetBtStatus(byte status)
-{
-	_btStatus=status;
-	uiDisplayBtIcon();
-}
-#endif
-
 
 #define LeftAligned 0
 #define RightAligned 1
@@ -302,6 +266,98 @@ void uiShowTextAtRow_P(byte row,str_t text,byte alignment,int indent)
 //********************************************************
 //* LCD interface
 //********************************************************
+
+//********************************************************
+//* BT
+//********************************************************
+
+#if WirelessSupported == true
+
+#define WiStateNoModule 0
+#define WiStateNotConnected 1
+#define WiStateSerialDisconnected 2
+#define WiStateConnected 3
+
+byte _wiStatus;
+
+void uiDisplayWirelessIcon(void)
+{
+	char ch=LcdCharWireless;
+	if(_wiStatus == 0){
+		ch=' ';
+	}
+	else if(_wiStatus == WiStateSerialDisconnected)
+	{
+		ch ='!';
+		buzzPlaySound(SoundIdWarnning);
+	}
+	else if(_wiStatus == WiStateNotConnected)
+	{
+	   	//CreatecCustomChar(_uibuffer,LcdCharWireless,WirelessDisconnectedSymbol);
+	   	ch = '?';
+		buzzPlaySound(SoundIdWarnning);
+	}
+	else // ==WiStateConnected
+	{
+	   	//CreatecCustomChar(_uibuffer,LcdCharWireless,WirelessSymbol);
+	   	ch=LcdCharWireless;
+	}
+	lcd.setCursor(19,0);
+	lcd.write(ch);
+}
+
+
+void uiSetWirelessStatus(byte status)
+{
+	_wiStatus=status;
+	uiDisplayWirelessIcon();
+
+	if(_wiStatus !=WiStateConnected){
+		ipSet = false;
+	}
+
+}
+#endif
+
+
+#if WiFiSupported == true
+
+void uiClearIpAddress(void)
+{
+	lcd.setCursor(1,2);
+	for(byte i=0;i<17;i++){
+		lcd.write(' ');
+	}
+}
+
+void uiPrintIpAddress(void)
+{
+	if(ipSet){
+		lcd.setCursor(1,2);
+		LCD_print_P(STR(IpAddress));
+
+		for(byte i=0;i<4;i++){
+			byte len=sprintInt((char*)_uibuffer,(int)ipAddress[i]);
+			for(byte b=0;b<len;b++)
+				lcd.write(_uibuffer[b]);
+			if(i<3) lcd.write('.');
+		}
+	}
+}
+
+void uiSetIp(byte ip[])
+{
+	if(ip==0 || (ip[0] ==0 && ip[1] ==0 && ip[2] ==0 && ip[3] ==0)){
+		ipSet = false;
+		return;
+	}
+	for(byte i=0;i<4;i++)
+		ipAddress[i]=ip[i];
+	ipSet=true;
+}
+
+#endif
+
 //********************************************************
 //* for update temperature and time on screen
 //********************************************************
@@ -563,16 +619,16 @@ void uiDisplayTemperatureAndRunningTime(void)
 #define HeatingSymbolRow 2
 #define HeatingSymbolCol 0
 
-#if BluetoothSupported == true
-void btReportHeater(byte value);
-void btReportPump(byte value);
+#if WirelessSupported == true
+void wiReportHeater(byte value);
+void wiReportPump(byte value);
 #endif
 
 
 void uiHeatingStatus(byte status)
 {
-#if BluetoothSupported == true
-	btReportHeater(status);
+#if WirelessSupported == true
+	wiReportHeater(status);
 #endif
 	lcd.setCursor(HeatingSymbolCol,HeatingSymbolRow);
 	if(status==HeatingStatus_On)
@@ -592,8 +648,8 @@ void uiHeatingStatus(byte status)
 
 void uiPumpStatus(byte status)
 {
-#if BluetoothSupported == true
-	btReportPump(status);
+#if WirelessSupported == true
+	wiReportPump(status);
 #endif
 
 	lcd.setCursor(PumpSymbolCol,PumpSymbolRow);
@@ -763,16 +819,23 @@ void uiSettingDisplayNumber(float number,byte precision)
 void uiClearScreen(void)
 {
 	lcd.clear();
-#if BluetoothSupported == true
-	uiDisplayBtIcon();
+#if WirelessSupported == true
+	uiDisplayWirelessIcon();
 #endif
 	
 }
 
-void uiMenu(str_t text)
+#if WirelessSupported == true
+void wiSendButtonLabel(const byte labelId);
+#endif
+
+void uiButtonLabel(const byte labelId,const char* text)
 {
 	uiClearRow(3);
 	uiShowTextAtRow_P(3,text,LeftAligned,1);
+#if WirelessSupported == true	
+	wiSendButtonLabel(labelId);
+#endif
 }
 
 void uiDisplaySettingTemperature(float settemp)
@@ -864,7 +927,7 @@ void uiAutoModeStage(byte idx)
 	
 	byte len=LCD_print_P(display);
 	byte i=len+10;
-#if BluetoothSupported == true
+#if WirelessSupported == true
 	for(;i<19;i++) lcd.write(' ');
 #else
 	for(;i<20;i++) lcd.write(' ');
@@ -905,4 +968,3 @@ void uiAutoModeFinishScreen(void)
 	uiShowTextAtRow_P(2,STR(Finished),CenterAligned,0);
 }
 #endif
-

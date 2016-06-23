@@ -58,8 +58,8 @@
 #define PS_RunBase 32
 #define PS_StageTemperatureAddr(i) ((PS_RunBase)+(i)* 5)
 #define PS_StageTimeAddr(i) ((PS_RunBase)+(i)*5+4)
-#define ToTempInStorage(t) ((int)(t*16))
-#define TempFromStorage(t)  ((float)t/16.0)
+#define ToTempInStorage(t) ((int)((t)*16))
+#define TempFromStorage(t)  ((float)(t)/16.0)
 
 // 0:   32 -  36 MashIn
 // 1:   37 -  41 Fitasi / phytase
@@ -147,5 +147,3 @@ word updateSettingWord(int addr,word value)
 }
 
 #endif
-
-

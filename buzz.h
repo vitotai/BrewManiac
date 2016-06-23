@@ -32,6 +32,8 @@ typedef byte SoundId;
 #define SoundIdUserInteractiveNeeded 0
 #define SoundIdConfirmUser 0
 
+#define SoundIdWarnning SoundIdTemperatureReached
+
 const byte _soundIdTemperatureReached[] PROGMEM ={5,10,3,10,3,10};
 const byte _soundIdCountDown[] PROGMEM ={9,20,20,20,20,20,20,20,20,40}; // 5 seconds
 //HOP_ALTERTING_TIME

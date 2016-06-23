@@ -12,6 +12,17 @@
 #ifndef BT_H
 #define BT_H
 
+
+#define wiReportCurrentStage btReportCurrentStage
+#define wiReportEvent btReportEvent
+#define wiReportPwm btReportPwm
+#define wiReportSettingTemperature btReportSettingTemperature
+#define wiInitialize btInitialize
+#define wiThread btThread
+
+#define btReportHeater wiReportHeater
+#define btReportPump wiReportPump
+
 boolean gIsBtModulePresent;
 boolean gIsConnected;
 
@@ -819,7 +830,7 @@ void   btProcessPersistenceSet(void)
 void btProcessDisconnect(void)
 {
 	gIsConnected=false;
-	uiSetBtStatus(BtStateNotConnected);
+	uiSetWirelessStatus(WiStateNotConnected);
 }
 //$VHB,[software name]
 // int,int, string
@@ -843,7 +854,7 @@ void   btProcessHello(void)
 	btSerial.println(",0.4"); //version
 	#endif
   	gIsConnected = true;
-  	uiSetBtStatus(BtStateConnected);
+  	uiSetWirelessStatus(WiStateConnected);
 }
 
 // int,float,int
@@ -990,7 +1001,7 @@ void btInitialize(void)
    // if connected, check setting or issue command to set 
    if(gIsBtModulePresent)
    {
-   		uiSetBtStatus(BtStateNotConnected);
+   		uiSetWirelessStatus(WiStateNotConnected);
 
 	#if  BT_MODULE_INITIALIZATION == true
 		btSetupBtModule();
@@ -998,7 +1009,7 @@ void btInitialize(void)
    }
    else
    {
-	   	uiSetBtStatus(BtStateNoModule);
+	   	uiSetWirelessStatus(WiStateNoModule);
    }
 }
 

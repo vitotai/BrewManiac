@@ -20,39 +20,58 @@
 // *************************
 //*  Hardware Configuration
 // *************************
+//*****************************
+/**** supported board  ******/
 
-//////////////////////////
-// supported board
 // UNOTEST is UNO, uses I2C LCD
 #define UNOTEST 1
 // MRE168 is MEGA, HD44780s LCD
 #define MRE168 2
 // Setting from default Open ArdBir 
 #define Pcb_ArdBir_DanielXan 3
-//////////////////////////
 
-#define BOARD Pcb_ArdBir_DanielXan
+// BOARD definition.
+#define BOARD MRE168
+
+/**** I2C LCD ******/
 // not usingI2C_LCD by default 
 #define I2C_LCD false
-
 // modify LCD hardware connection following
+#define LCD_I2C_ADDR 0x3F
 
-//hardware setup
+/**** Wireless module connection ******/
+/**** Bluetooth no longer works. ******/
+// Wireless connection
+#define UseSoftwareSerial false
+
+#if UseSoftwareSerial == true
+const byte SoftwareSerialRx = 10;
+const byte SoftwareSerialTx = 11;
+#endif
+
+#define WiFiSerialBaudRate 38400
+
+/* this option is not used if  UseSoftwareSerial == true */
+#define WirelessHardwarePort Serial
+
+/**** PIN setup ******/
+// PIN setup
 const byte SensorPin=7;
 #define PumpControlPin  6
 #define BuzzControlPin 8
 #define HeatControlPin  9
-
 
 #if BOARD == MRE168
 #define ButtonUpPin    A3
 #define ButtonDownPin   A2
 #define ButtonStartPin  A1
 #define ButtonEnterPin  A0
+// use Serial1
+#define UseSoftwareSerial false
+#define WirelessHardwarePort Serial1
 #endif
 
 #if BOARD == UNOTEST
-
 // overwrite I2C_LCD setting
 #define I2C_LCD true
 #define ButtonUpPin    A2
@@ -69,62 +88,45 @@ const byte SensorPin=7;
 #define ButtonEnterPin  A1
 #endif
 
-#define BluetoothSupported true
-#define UseSoftwareSerial true
-
-#if UseSoftwareSerial == true
-const byte SoftwareSerialRx = 10;
-const byte SoftwareSerialTx = 11;
-#endif
 
 // *************************
 //*  software Configuration
 // *************************
 
+/** WirelessConnection values */
+
+#define WirelessNone 0
+#define WirelessBluetooth 1
+#define WirelessWiFi 2
+
+#define WirelessConnection WirelessWiFi
+
+/** Functions */
+
+// manual control over pump during mash
 #define MANUAL_PUMP_MASH true
-
-//debug
-//should be false
-#define SerialDebug false
-#define CHANG_BAUDRATE true
-
-#if UseSoftwareSerial != true
-#define SerialDebug false
-#endif
-
-// should be false
-#define FakeHeating false
-#if FakeHeating == true
-#define USE_DS18020 false
-#else
-// must be true
-#define USE_DS18020 true
-#endif
-
-#define DEVELOP_SETTING_VALUE false
-
-#define ElectronicOnly true
-#define PerformanceProfiling false
-
-#define NoPrint true
-#define BT_STRICT true
-#define BT_TemperatureReportPeriod 10000
-
-#define BT_AutoBaudRate true
-#define BT_MODULE_INITIALIZATION true
-#define BT_Menu false
-
-#if BT_MODULE_INITIALIZATION != true
-#define BT_Menu false
-#endif
-
-
+// DELAY start
 #define NoDelayStart true
 #define SupportAutoModeRecovery true
 #define SupportManualModeCountDown true
-
 #define NoWhirlpool true
+#define ElectronicOnly true
 
+// bluetooth related setting
+#define BT_AutoBaudRate true
+#define CHANG_BAUDRATE true
+#define BT_MODULE_INITIALIZATION true
+#define BT_Menu false
+
+//debug setting
+#define SerialDebug false
+#define FakeHeating false
+#define DEVELOP_SETTING_VALUE false
+
+// *************************
+//*  advanced settings
+// *************************
+#define BT_TemperatureReportPeriod 10000
 #define ButtonPressedDetectMinTime 125 // in ms
 #define ButtonLongPressedDetectMinTime 1500 // in ms
 
@@ -132,6 +134,46 @@ const byte SoftwareSerialTx = 11;
 #define ButtonContinuousPressedTrigerTime 150 // in ms
 #define ButtonFatFingerTolerance 50  // in ms
 
+// *************************
+//*  end of software configuration
+// *************************
+
+#if WirelessConnection == WirelessNone
+#define WiFiSupported false
+#define BluetoothSupported false
+#define WirelessSupported false
+#endif
+
+#if WirelessConnection == WirelessBluetooth
+#define WiFiSupported false
+#define BluetoothSupported true
+#define WirelessSupported true
+#endif
+
+#if WirelessConnection == WirelessWiFi
+#define WiFiSupported true
+#define BluetoothSupported false
+#define WirelessSupported true
+#endif
+
+#if UseSoftwareSerial != true
+#define SerialDebug false
+#endif
+
+#if FakeHeating == true
+#define USE_DS18020 false
+#else
+// must be true
+#define USE_DS18020 true
+#endif
+
+// bluetooth related options
+#define NoPrint true
+#define BT_STRICT true
+
+#if BT_MODULE_INITIALIZATION != true
+#define BT_Menu false
+#endif
 
 
 #if I2C_LCD == true
@@ -147,7 +189,7 @@ const byte SoftwareSerialTx = 11;
 
 
 #if I2C_LCD == true
-	LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+	LiquidCrystal_I2C lcd(LCD_I2C_ADDR, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 #else
 	LiquidCrystal lcd(A4, A5, 2, 3, 4, 5);
 #endif
@@ -156,20 +198,21 @@ const byte SoftwareSerialTx = 11;
 #if NoPrint == true
 #include "mystrlib.h"
 #endif
+
 //{debug
 //overrite definition to save some memory
 #if BOARD == UNOTEST
 #define FakeHeating true
 #define USE_DS18020 false
 
-#define SupportAutoModeRecovery true
+#define SupportAutoModeRecovery false
 #define SupportManualModeCountDown false
 // 32k flash is limitted
-#define BT_AutoBaudRate true
+#define BT_AutoBaudRate false
 #define BT_MODULE_INITIALIZATION false
 #define BT_Menu false
+#endif //over write stting for test board
 
-#endif
 //}debug
 // *************************
 //*  global variables
@@ -191,6 +234,11 @@ byte gBoilHeatOutput;
 boolean gIsHeatOn;
 boolean gIsPumpOn;
 boolean gIsUseFahrenheit;
+
+boolean _isEnterPwm;
+boolean gIsTemperatureReached;
+boolean gIsPaused;
+
 #if MANUAL_PUMP_MASH == true
 boolean gManualPump;
 #endif
@@ -247,7 +295,7 @@ void btMenuEventHandler(byte);
 #define ConvertC2F(d) (((d)*1.8)+32)
 
 
-#if BluetoothSupported == true
+#if WirelessSupported == true
 
 //Stage
 #define StageMashIn 	0
@@ -380,6 +428,7 @@ void setEventMask(byte mask)
 // *************************
 //*  includes, follow Arduino conveniention
 // *************************
+#include "buzz.h"
 
 // *************************
 //*  EEPROM map
@@ -390,12 +439,15 @@ void setEventMask(byte mask)
 #include "ps.h"
 
 // *************************
-//*  Bluetooth
+//*  Bluetooth and wireless
 // *************************
 #if BluetoothSupported  == true
 #include "bt.h"
 #endif
 
+#if WiFiSupported == true
+#include "wi.h"
+#endif
 
 // *************************
 //*  Time related function
@@ -406,12 +458,13 @@ unsigned long _gAuxTimeout;
 boolean  _isAuxTimeout;
 
 #define IsAuxTimeout _isAuxTimeout
+/*
 unsigned long getTimeLeft(void)
 {
 	if(_gTimeout ==0) return 0;
 	return(_gTimeout - gCurrentTimeInMS);
 }
-
+*/
 unsigned long tmGetRemainingTime(void)
 {
 	if(_gTimeout ==0) return 0;
@@ -532,7 +585,7 @@ void btnInitialize(void)
 
 #define BUTTON_DEBUG false
 
-#if BluetoothSupported == true
+#if WirelessSupported == true
 
 boolean _virtualButtonPressed=false;
 
@@ -549,7 +602,7 @@ void virtualButtonPress(byte mask,boolean longPressed)
 
 boolean btnReadButtons(void)
 {
-#if BluetoothSupported == true
+#if WirelessSupported == true
       if(_virtualButtonPressed)
       {
       	_virtualButtonPressed = false;
@@ -1086,8 +1139,6 @@ void pumpLoadParameters(void)
 #endif
 }
 
-
-
 void pumpOff(void)
 {
 	if(!gIsPumpOn) return;
@@ -1255,7 +1306,7 @@ void pumpThread(void)
 // *************************
 
 // move to buzz.h
-#include "buzz.h"
+//#include "buzz.h"
 
 // *************************
 //*  Event handling function
@@ -1272,6 +1323,37 @@ void pumpThread(void)
 //**************************************************************
 // I hope I could do it in C++ objective way.
 // maybe someday
+
+void changeSettingValue(int address,byte value)
+{
+	updateSetting(address,value);
+
+#if WirelessSupported == true
+	wiSettingChanged(address,value);
+#endif
+
+}
+//TODO: what if the editing is interrupted? 
+// user abort or power shortage during editing?
+// the best way may be implemented as a "transaction"
+// It is simple, but maybe overshooting?
+void changeAutomationTime(byte stage, byte time)
+{
+	updateSetting(PS_StageTimeAddr(stage),time);
+}
+
+void changeAutomationTemperature(byte stage, int value)
+{
+	updateSettingWord(PS_StageTemperatureAddr(stage),value);
+}
+
+void finishAutomationEdit(void)
+{
+#if WirelessSupported == true
+	wiQueryRecipe();
+#endif
+}
+
 
 //typedef void (*FuncValueDisplay)(int);
 
@@ -1416,7 +1498,7 @@ void settingPidEditSetting(void)
 
 void settingPidSetup(void)
 {
-	uiMenu(STR(Up_Down_x_Ok));
+	uiButtonLabel(ButtonLabel(Up_Down_x_Ok));
 #if ElectronicOnly != true		
 	_currentPidSetting=0;
 #else
@@ -1431,7 +1513,7 @@ void settingPidEventHandler(byte)
 	if(btnIsEnterPressed)
 	{
 		byte value=(byte)editItemValue();
-		updateSetting(PS_AddrOfPidSetting(_currentPidSetting),value);
+		changeSettingValue(PS_AddrOfPidSetting(_currentPidSetting),value);
 		
 		//go to next setting
 		_currentPidSetting ++;		
@@ -1619,7 +1701,7 @@ void settingUnitDisplayItem(void)
 // Initialization of the screen
 void settingUnitSetup(void)
 {
-	uiMenu(STR(Up_Down_x_Ok));
+	uiButtonLabel(ButtonLabel(Up_Down_x_Ok));
 	_currentUnitSetting=0;
 	settingUnitDisplayItem();
 }
@@ -1629,7 +1711,7 @@ void settingUnitEventHandler(byte)
 	if(btnIsEnterPressed)
 	{
 		byte value=(byte)editItemValue();
-		updateSetting(PS_AddrOfUnitSetting(_currentUnitSetting),value);
+		changeSettingValue(PS_AddrOfUnitSetting(_currentUnitSetting),value);
 		
 		if(_currentUnitSetting == 0 ) // degree setting
 		{
@@ -1721,9 +1803,9 @@ void settingAutomationDisplayItem(void)
 	
 	if( _editingStageAux == 0   // temerature editing
 		&& _editingStage>0 && _editingStage < 6) // except MashIn/MashOut, and in Temperature editing
-		uiMenu(STR(Up_Down_Skip_Ok));
+		uiButtonLabel(ButtonLabel(Up_Down_Skip_Ok));
 	else
-		uiMenu(STR(Up_Down_x_Ok));
+		uiButtonLabel(ButtonLabel(Up_Down_x_Ok));
 			
 	if(_editingStage ==0)
 	{
@@ -1830,7 +1912,7 @@ void settingAutoEventHandler(byte)
 		{
 			if(_editingStageAux ==0)
 			{
-				updateSettingWord(PS_StageTemperatureAddr(_editingStage),value);
+				changeAutomationTemperature(_editingStage,value);
 			
 				if(_editingStage==0) // no time needed for Mash In
 					_editingStage++;
@@ -1839,7 +1921,7 @@ void settingAutoEventHandler(byte)
 			}
 			else
 			{
-				updateSetting(PS_StageTimeAddr(_editingStage),(byte)value);
+				changeAutomationTime(_editingStage,(byte)value);
 				//next stage	
 				_editingStageAux=0;
 				_editingStage++;
@@ -1874,6 +1956,8 @@ void settingAutoEventHandler(byte)
 			if(_editingStageAux == (hopsNum-1))
 			{
 				//finish
+				finishAutomationEdit();
+				
 				uiClearSettingRow();
 				switchApplication(SETUP_SCREEN);
 				return;
@@ -1895,7 +1979,7 @@ void settingAutoEventHandler(byte)
 		{
 			// skip the stage, set the time to zero, and move to 
 			// next stage.
-			updateSetting(PS_StageTimeAddr(_editingStage),(byte)0);
+			changeAutomationTime(_editingStage,(byte)0);
 
 			_editingStage++;
 			settingAutomationDisplayItem();
@@ -1946,7 +2030,7 @@ void btDisplayItem(void)
 	if(_currentBtMenuItem ==0)
 	{
 		// network name
-		uiMenu(STR(x_x_x_Ok));
+		uiButtonLabel(ButtonLabel(x_x_x_Ok));
 		uiSettingTitle(STR(BT_NetworkName));
 		uiSettingDisplayTextDynamic(btNetworkName);
 	}
@@ -1954,9 +2038,9 @@ void btDisplayItem(void)
 	{
 		// use PIN?
 		if(gIsConnected)
-			uiMenu(STR(x_x_x_Ok));
+			uiButtonLabel(ButtonLabel(x_x_x_Ok));
 		else
-			uiMenu(STR(Up_Down_x_Ok));
+			uiButtonLabel(ButtonLabel(Up_Down_x_Ok));
 
 		uiSettingTitle(STR(BT_UsePin));
 		// btSecurityType == 0 : no security
@@ -1968,9 +2052,9 @@ void btDisplayItem(void)
 	{
 		// PIN CODE
 		if(gIsConnected)
-			uiMenu(STR(x_x_x_Ok));
+			uiButtonLabel(ButtonLabel(x_x_x_Ok));
 		else
-			uiMenu(STR(x_x_Edit_Ok));
+			uiButtonLabel(ButtonLabel(x_x_Edit_Ok));
 			
 		uiSettingTitle(STR(BT_PIN));
 		uiSettingDisplayTextDynamic(btPinCode);		
@@ -2053,7 +2137,7 @@ void btMenuEventHandler(byte event)
 			{
 				strcpy(_pinBuf,btPinCode);
 				// enter edit mode
-				uiMenu(STR(Up_Down_Next_x));
+				uiButtonLabel(ButtonLabel(Up_Down_Next_x));
 				uiEditTextStart(_pinBuf);
 				_editingIndex=0;
 			}
@@ -2064,7 +2148,7 @@ void btMenuEventHandler(byte event)
 					// finish editing
 					_editingIndex=-1;
 
-					uiMenu(STR(x_x_Edit_Ok));
+					uiButtonLabel(ButtonLabel(x_x_Edit_Ok));
 					uiEditTextEnd();
 				}
 				else
@@ -2123,11 +2207,11 @@ void menuDisplayList(byte index)
 
 	uiSubTitle(level1Menu[index]);
 	if(index ==0)
-		uiMenu(STR(x_Down_Quit_Ok));
+		uiButtonLabel(ButtonLabel(x_Down_Quit_Ok));
 	else if(index == menuNO)
-		uiMenu(STR(Up_x_Quit_Ok));
+		uiButtonLabel(ButtonLabel(Up_x_Quit_Ok));
 	else 
-		uiMenu(STR(Up_Down_Quit_Ok));
+		uiButtonLabel(ButtonLabel(Up_Down_Quit_Ok));
 }
 
 byte _currentLevelOne=0;
@@ -2137,8 +2221,8 @@ void menuSetup(void)
 //	_currentLevelOne=0; "remember" last menu position
 	menuDisplayList(_currentLevelOne);
 	
-	#if BluetoothSupported == true
-	btReportCurrentStage(StageSetting);
+	#if WirelessSupported == true
+	wiReportCurrentStage(StageSetting);
 	#endif
 }
 
@@ -2194,7 +2278,6 @@ void menuEventHandler(byte event)
 //*  Common function to handle Setting temperature
 //*
 // ***************************************************************************
-boolean _isEnterPwm;
 
 float _maxAdjustTemp;
 float _minAdjustTemp;
@@ -2210,9 +2293,13 @@ void togglePwmInput(void)
 					uiShowPwmLabel();
 					uiShowPwmValue(gBoilHeatOutput);
 					_isEnterPwm=true;
-					#if BluetoothSupported == true
-					btReportPwm();
-					btReportEvent(RemoteEventPwmOn);
+					#if WirelessSupported == true
+					wiReportPwm();
+					#if WirelessConnection != WirelessWiFi
+					wiReportEvent(RemoteEventPwmOn);
+					#else
+					wiTogglePwm();
+					#endif
 					#endif
 				}
 			}
@@ -2223,8 +2310,12 @@ void togglePwmInput(void)
 					// turn off
 					uiClearPwmDisplay();
 					_isEnterPwm = false;
-					#if BluetoothSupported == true
-					btReportEvent(RemoteEventPwmOff);
+					#if WirelessSupported == true
+					#if WirelessConnection != WirelessWiFi
+					wiReportEvent(RemoteEventPwmOff);
+					#else
+					wiTogglePwm();
+					#endif
 					#endif
 
 				}
@@ -2247,8 +2338,8 @@ void adjustSp(float adjust)
 	uiDisplaySettingTemperature(gSettingTemperature);
 	// if adjust above delta
 		
-	#if BluetoothSupported == true
-	btReportSettingTemperature();
+	#if WirelessSupported == true
+	wiReportSettingTemperature();
 	#endif
 
 }
@@ -2264,8 +2355,8 @@ void adjustPwm(int adjust)
 	
 	uiShowPwmValue(gBoilHeatOutput);
 	
-	#if BluetoothSupported == true
-	btReportPwm();
+	#if WirelessSupported == true
+	wiReportPwm();
 	#endif
 }
 
@@ -2344,11 +2435,14 @@ void manualModeSetup(void)
 {
 	uiTitle(STR(Manual_Mode));
 	uiSubTitle(STR(Water_Added));
-	uiMenu(STR(Continue_Yes_No));
+	uiButtonLabel(ButtonLabel(Continue_Yes_No));
 	_state = MSAskWater;
 	_isEnterPwm=false;
 	
 	gSettingTemperature = DEFAULT_MANUL_MODE_TEMPERATURE;
+	#if WirelessSupported == true
+	wiReportSettingTemperature();
+	#endif
 }
 
 #define TEMPERATURE_ADJUST_THRESHOLD 2.0
@@ -2357,7 +2451,7 @@ void manualModeSetup(void)
 void manualModeEnterManualMode(void)
 {
 	uiClearSubTitleRow();
-	uiMenu(STR(Up_Down_Heat_Pmp));
+	uiButtonLabel(ButtonLabel(Up_Down_Heat_Pmp));
 	
 	// Setpoint temperature
 	uiDisplaySettingTemperature(gSettingTemperature);
@@ -2385,10 +2479,12 @@ void manualModeEnterManualMode(void)
 	
 	setAdjustTemperature(110.0,20.0);
 	
-	#if BluetoothSupported == true
-	btReportCurrentStage(StageManualMode);
-	btReportSettingTemperature();
+	#if WirelessSupported == true
+	wiReportCurrentStage(StageManualMode);
+	wiReportSettingTemperature();
 	#endif
+	
+	gIsTemperatureReached=false;
 }
 
 
@@ -2452,6 +2548,7 @@ void manualModeEventHandler(byte event)
 					// else make it count down mode
 					isManualModeCountDownMode=(manualModeChangeCountDownTime > 0);
 					_state = MSWaitTemperature;
+					gIsTemperatureReached=false;
 				}
 				uiRunningTimeBlink(isCountDownTimeBlinking);
 
@@ -2495,6 +2592,7 @@ void manualModeEventHandler(byte event)
 						#endif
 							uiRunningTimeShowInitial(0);
 						_state = MSWaitTemperature;
+						gIsTemperatureReached = false;
 					}
 				}
 			}
@@ -2512,6 +2610,7 @@ void manualModeEventHandler(byte event)
 					buzzPlaySound(SoundIdTemperatureReached);
 					
 					_state=MSTemperateReached;
+					gIsTemperatureReached=true;
 					
 					#if SupportManualModeCountDown == true
 					if(isManualModeCountDownMode)
@@ -2523,8 +2622,8 @@ void manualModeEventHandler(byte event)
 					#endif
 					uiRunningTimeStart();
 					
-					#if BluetoothSupported == true
-					btReportEvent(RemoteEventTemperatureReached);
+					#if WirelessSupported == true
+					wiReportEvent(RemoteEventTemperatureReached);
 					#endif
 				}
 			}
@@ -2602,7 +2701,7 @@ void autoModeSetup(void)
 	{
 		_state=AS_AskResume;
 		uiSubTitle(STR(Resume_Process));
-		uiMenu(STR(Continue_Yes_No));
+		uiButtonLabel(ButtonLabel(Continue_Yes_No));
 		return;
 	}
 	//else
@@ -2614,12 +2713,12 @@ void autoModeSetup(void)
 	// output Delay State
 	uiTitle(STR(AutomaticMode));
 	uiSubTitle(STR(Delay_Start));
-	uiMenu(STR(No_Yes));
+	uiButtonLabel(ButtonLabel(No_Yes));
 #else
 	_state = AS_AskWaterAdded;
 	uiTitle(STR(AutomaticMode));
 	uiSubTitle(STR(Water_Added));
-	uiMenu(STR(Continue_Yes_No));
+	uiButtonLabel(ButtonLabel(Continue_Yes_No));
 
 #endif
 }
@@ -2647,9 +2746,9 @@ void autoModeEnterMashIn(void)
 	uiTempDisplaySetPosition(TemperatureAutoModePosition);
 
 	#if MANUAL_PUMP_MASH == true
-	uiMenu(STR(Up_Down_Pause_Pmp));
+	uiButtonLabel(ButtonLabel(Up_Down_Pause_Pmp));
 	#else
-	uiMenu(STR(Up_Down_Pause_x));
+	uiButtonLabel(ButtonLabel(Up_Down_Pause_x));
 	#endif
 	// start pump, if request,
 	
@@ -2662,8 +2761,8 @@ void autoModeEnterMashIn(void)
 	setAdjustTemperature(75.0,25.0);
 	_isEnterPwm=false;
 	
-	#if BluetoothSupported == true
-	btReportCurrentStage(StageMashIn);
+	#if WirelessSupported == true
+	wiReportCurrentStage(StageMashIn);
 	#endif
 }
 
@@ -2740,7 +2839,9 @@ byte autoModeGetRecoveryTime(void)
 //
 
 byte _mashingStep;
-boolean _mashingTemperatureReached;
+
+//boolean _mashingTemperatureReached;
+#define _mashingTemperatureReached gIsTemperatureReached
 
 boolean _askingSkipMashingStage;
 
@@ -2777,9 +2878,9 @@ void autoModeNextMashingStep(void)
 	uiDisplaySettingTemperature(gSettingTemperature);
 	
 	#if	MANUAL_PUMP_MASH == true
-	uiMenu(STR(Up_Down_PmPus_STP));
+	uiButtonLabel(ButtonLabel(Up_Down_PmPus_STP));
 	#else
-	uiMenu(STR(Up_Down_Pause_STP));
+	uiButtonLabel(ButtonLabel(Up_Down_Pause_STP));
 	#endif
 	_mashingTemperatureReached=false;
 
@@ -2804,13 +2905,13 @@ void autoModeNextMashingStep(void)
 		if(readSetting(PS_PumpOnMashOut)) pumpOn();
 		else pumpOff();
 	}
-
+	
 #if	MANUAL_PUMP_MASH == true
 	}
 #endif
 
-	#if BluetoothSupported == true
-	btReportCurrentStage(_mashingStep);
+	#if WirelessSupported == true
+	wiReportCurrentStage(_mashingStep);
 	#endif	
 }
 
@@ -2834,7 +2935,7 @@ void autoModeEnterIodineTest(void)
 	_state = AS_IodineTest;
 	
 	uiPreparePasueScreen(STR(IODINE_TEST));
-	uiMenu(STR(x_x_Ok_x));
+	uiButtonLabel(ButtonLabel(x_x_Ok_x));
 
 	byte iodineTime=readSetting(PS_IodineTime);
 	if(iodineTime)
@@ -2853,8 +2954,8 @@ void autoModeEnterIodineTest(void)
 		buzzPlaySoundRepeat(SoundIdUserInteractiveNeeded);
 	}
 	
-	#if BluetoothSupported == true
-	btReportEvent(RemoteEventIodineTest);
+	#if WirelessSupported == true
+	wiReportEvent(RemoteEventIodineTest);
 	#endif
 	
 }
@@ -2885,7 +2986,7 @@ void autoModeEnterAskRemoveMalt(void)
 	uiRunningTimeStop();
 	uiClearPrompt();
 	uiPrompt(STR(Remove_Malt));
-	uiMenu(STR(Continue_Yes_No));
+	uiButtonLabel(ButtonLabel(Continue_Yes_No));
 	// skip event mask, just filter it out in handling code
 	
 	buzzPlaySoundRepeat(SoundIdWaitUserInteraction);
@@ -2893,8 +2994,8 @@ void autoModeEnterAskRemoveMalt(void)
 	if(readSetting(PS_PidPipe) == 1 && readSetting(PS_SensorType) == 0)
 		heatProgramOff(); // heat off, programming
 	
-	#if BluetoothSupported == true
-	btReportEvent(RemoteEventRemoveMalt);
+	#if WirelessSupported == true
+	wiReportEvent(RemoteEventRemoveMalt);
 	#endif
 }
 
@@ -2909,6 +3010,7 @@ void autoModePause(unsigned long time)
 {	
 	_stateBeforePause = _state;
 	_state = AS_Pause;
+	gIsPaused=true;
 	// stop Heating & pump
 	_savedHeating = gIsHeatOn;
 	_savedPump = gIsPumpOn;
@@ -2917,14 +3019,14 @@ void autoModePause(unsigned long time)
 	// just wait for user button
 	
 	uiPreparePasueScreen(STR(In_Pause));
-	uiMenu(STR(x_x_Exit_x));
+	uiButtonLabel(ButtonLabel(x_x_Exit_x));
 	
 	_savedTime=time;
 	
 	uiRunningTimeShowInitial(_savedTime/1000);
 		
-	#if BluetoothSupported == true
-	btReportEvent(RemoteEventPause);
+	#if WirelessSupported == true
+	wiReportEvent(RemoteEventPause);
 	#endif
 }
 
@@ -2932,7 +3034,7 @@ void autoModeExitPause(void)
 {
 	// restore state
 	_state = _stateBeforePause;
-	
+	gIsPaused=false;
 	// restore timer, if any
 	if(_savedTime > 0)
 	{
@@ -2976,21 +3078,21 @@ void autoModeExitPause(void)
 	// menu is different for mashin & mashing
 #if MANUAL_PUMP_MASH == true
 	if(_state == AS_MashIn)
-		uiMenu(STR(Up_Down_Pause_Pmp));
+		uiButtonLabel(ButtonLabel(Up_Down_Pause_Pmp));
 	else
-		uiMenu(STR(Up_Down_PmPus_STP));
+		uiButtonLabel(ButtonLabel(Up_Down_PmPus_STP));
 #else
 	if(_state == AS_MashIn)
-		uiMenu(STR(Up_Down_Pause_x));
+		uiButtonLabel(ButtonLabel(Up_Down_Pause_x));
 	else
-		uiMenu(STR(Up_Down_Pause_STP));
+		uiButtonLabel(ButtonLabel(Up_Down_Pause_STP));
 #endif		
 	// restore heating and pump
 	if(_savedHeating) heatOn();
 	if(_savedPump) pumpOn();
 	
-	#if BluetoothSupported == true
-	btReportEvent(RemoteEventResume);
+	#if WirelessSupported == true
+	wiReportEvent(RemoteEventResume);
 	#endif
 }
 
@@ -3026,8 +3128,11 @@ void autoModeMashingStageFinished(void)
 //*********************************
 // boiling stage
 
-boolean _isBoilTempReached;
-boolean _isBoilTimerPaused;
+//boolean _isBoilTempReached;
+#define _isBoilTempReached gIsTemperatureReached
+
+//boolean _isBoilTimerPaused;
+#define _isBoilTimerPaused gIsPaused
 
 void autoModeEnterBoiling(void)
 {
@@ -3051,7 +3156,7 @@ void autoModeEnterBoiling(void)
 	uiRunningTimeShowInitial(boilTime * 60);
 	
 	uiAutoModeStage(BoilingStage);
-	uiMenu(STR(Up_Down_x_Pmp));
+	uiButtonLabel(ButtonLabel(Up_Down_x_Pmp));
 	
 	if(readSetting(PS_PumpOnBoil)) pumpOn();
 	else pumpOff();
@@ -3062,8 +3167,8 @@ void autoModeEnterBoiling(void)
 	#endif
 	_isEnterPwm =false;
 	heatOn();
-	#if BluetoothSupported == true
-	btReportCurrentStage(StageBoil);	
+	#if WirelessSupported == true
+	wiReportCurrentStage(StageBoil);	
 	#endif
 }
 
@@ -3095,8 +3200,8 @@ void autoModeAddHopNotice(void)
 			_numHopToBeAdded --;
 			buzzPlaySound(SoundIdAddHop);
 			
-			#if BluetoothSupported == true
-			btReportEvent(RemoteEventAddHop);
+			#if WirelessSupported == true
+			wiReportEvent(RemoteEventAddHop);
 			#endif			
 }
 
@@ -3177,7 +3282,7 @@ void autoModeBoilingPauseHandler(void)
 	if(_isBoilTimerPaused)
 	{
 		// resume
-		uiMenu(STR(Up_Down_Pause_Pmp));
+		uiButtonLabel(ButtonLabel(Up_Down_Pause_Pmp));
 		uiRunningTimeStartCountDown(_remainingBoilTime/1000);
 		autoModeReStartBoilingTimer();
 
@@ -3189,7 +3294,7 @@ void autoModeBoilingPauseHandler(void)
 		_remainingBoilTime=tmPauseTimer();
 		// in case hop reminder is running. restore the screen
 		uiAutoModeStage(BoilingStage);
-		uiMenu(STR(Up_Down_RUN_Pmp));
+		uiButtonLabel(ButtonLabel(Up_Down_RUN_Pmp));
 	}
 	_isBoilTimerPaused = ! _isBoilTimerPaused;
 }
@@ -3206,7 +3311,7 @@ void autoModeEnterDelayTimeInput(void)
 	_state = AS_DelayTimeInput;
 	uiClearSubTitleRow();
 	uiSubTitle(STR(Setting_Delay));
-	uiMenu(STR(Up_Down_Quit_Ok));
+	uiButtonLabel(ButtonLabel(Up_Down_Quit_Ok));
 	// use display time counting
 	uiRunningTimeSetPosition(RunningTimeDelayInputPosition);
 	uiRunningTimeShowInitial(15 *60);
@@ -3220,6 +3325,11 @@ bool _stageConfirm;
 
 void autoModeCoolingAsk(const char* msg)
 {
+	
+	#if WirelessSupported == true
+	wiReportCurrentStage(StageCooling);	
+	#endif	
+	
 	_stageConfirm=false;
 
 	//dismiss Temperature & running time
@@ -3230,7 +3340,7 @@ void autoModeCoolingAsk(const char* msg)
 	
 	uiSubTitle(msg);
 	
-	uiMenu(STR(Continue_Yes_No));
+	uiButtonLabel(ButtonLabel(Continue_Yes_No));
 }
 
 void autoModeEnterCooling(void)
@@ -3249,15 +3359,11 @@ void autoModeEnterCooling(void)
 	uiRunningTimeShowInitial(0);
 	uiRunningTimeStart();
 	
-	uiMenu(STR(Up_Down_x_Pmp));
+	uiButtonLabel(ButtonLabel(Up_Down_END_Pmp));
 	
 	setAdjustTemperature(30,10);
 	_isEnterPwm=false;
 	
-	
-	#if BluetoothSupported == true
-	btReportCurrentStage(StageCooling);	
-	#endif	
 }
 #if NoWhirlpool != true
 #define MAX_WHIRLPOOL_TIME 10
@@ -3277,7 +3383,7 @@ void autoModeWhirlpoolInputTime(void)
 	
 	uiSubTitle(STR(Timeing_Whirlpool));
 	uiRunningTimeShowInitial(_whirlpoolTime * 60);
-	uiMenu(STR(Up_Down_Quit_Ok));	
+	uiButtonLabel(ButtonLabel(Up_Down_Quit_Ok));	
 }
 
 void autoModeWhirlpool(void)
@@ -3295,15 +3401,15 @@ void autoModeWhirlpool(void)
 	uiDisplaySettingTemperature(gSettingTemperature);
 	
 	uiRunningTimeShowInitial(_whirlpoolTime * 60);
-	uiMenu(STR(x_x_x_Pmp));
+	uiButtonLabel(ButtonLabel(x_x_x_Pmp));
 	
 	_pumpRunning = true;
 	pumpOn();
 	tmSetTimeoutAfter((unsigned long)_whirlpoolTime * 60 *1000);
 	uiRunningTimeStartCountDown(_whirlpoolTime * 60);
 
-	#if BluetoothSupported == true
-	btReportCurrentStage(StageWhirlpool);	
+	#if WirelessSupported == true
+	wiReportCurrentStage(StageWhirlpool);	
 	#endif
 	
 }
@@ -3345,8 +3451,8 @@ void autoModeBrewEnd(void)
 	buzzPlaySoundRepeat(SoundIdBrewEnd);
 	tmSetTimeoutAfter(BREW_END_STAY_DURATION * 1000);
 
-	#if BluetoothSupported == true
-	btReportEvent(RemoteEventBrewFinished);
+	#if WirelessSupported == true
+	wiReportEvent(RemoteEventBrewFinished);
 	#endif
 }
 
@@ -3403,14 +3509,15 @@ void autoModeResumeProcess(void)
 				// findout whihc hop is current 
 				autoModeRecoveryTimeTracking = true;
 			
-				#if BluetoothSupported == true
-				btReportEvent(RemoteEventTemperatureReached);
-				#endif
 
 				_isBoilTempReached=true;
 				unsigned long sec=(unsigned long)time *60;
 				uiRunningTimeStartCountDown(sec);
 				tmSetTimeoutAfter(sec *1000);
+
+				#if WirelessSupported == true
+				wiReportEvent(RemoteEventTemperatureReached);
+				#endif
 				
 				// start hop & boiling out timer
 				byte hopnum =  readSetting(PS_NumberOfHops);	
@@ -3462,8 +3569,8 @@ void autoModeResumeProcess(void)
 				
 				autoModeRecoveryTimeTracking = true;
 				
-				#if BluetoothSupported == true
-				btReportEvent(RemoteEventTemperatureReached);
+				#if WirelessSupported == true
+				wiReportEvent(RemoteEventTemperatureReached);
 				#endif
 
 
@@ -3523,7 +3630,7 @@ void autoModeEventHandler(byte event)
 		{
 			// ask resume, just ignore this for now
 			uiSubTitle(STR(Water_Added));
-			uiMenu(STR(Continue_Yes_No));
+			uiButtonLabel(ButtonLabel(Continue_Yes_No));
 		}
 	}//if(_state == AS_AskDelayStart)
 	else 
@@ -3623,7 +3730,7 @@ void autoModeEventHandler(byte event)
 		else if(btnIsEnterPressed)
 		{
 			_state = AS_DelayTimeConfirm;
-			uiMenu(STR(Continue_Yes_No));
+			uiButtonLabel(ButtonLabel(Continue_Yes_No));
 		}
 	} // state AS_DelayTimeInput
 	else if(AutoStateIs(AS_DelayTimeConfirm))
@@ -3636,14 +3743,14 @@ void autoModeEventHandler(byte event)
 			_state = AS_DelayWaiting;
 			uiClearSubTitleRow();
 			uiSubTitle(STR(To_be_started_in));
-			uiMenu(STR(x_x_Quit_Go));
+			uiButtonLabel(ButtonLabel(x_x_Quit_Go));
 			
 			tmSetTimeoutAfter(_delayTime * 15 * 60 * 1000);
 			uiRunningTimeStartCountDown(_delayTime * 15 * 60);
 			setEventMask(TimeoutEventMask | ButtonPressedEventMask );
 			
-			#if BluetoothSupported == true
-			btReportCurrentStage(StageDelayStart);
+			#if WirelessSupported == true
+			wiReportCurrentStage(StageDelayStart);
 			#endif
 		}
 		else if(btnIsEnterPressed)
@@ -3692,15 +3799,16 @@ void autoModeEventHandler(byte event)
 			{
 				// temp reached. ask continue & malt in
 				_state = AS_MashInAskContinue;
+				_mashingTemperatureReached = true;
 				
 				uiPrompt(STR(TemperatureReached));
-				uiMenu(STR(Continue_Yes_x));
+				uiButtonLabel(ButtonLabel(Continue_Yes_x));
 				setEventMask(ButtonPressedEventMask);
 				
 				buzzPlaySoundRepeat(SoundIdWaitUserInteraction);
 				
-				#if BluetoothSupported == true
-				btReportEvent(RemoteEventTemperatureReached);
+				#if WirelessSupported == true
+				wiReportEvent(RemoteEventTemperatureReached);
 				#endif
 
 			}
@@ -3752,11 +3860,11 @@ void autoModeEventHandler(byte event)
 				// ask Add Malt
 				uiClearPrompt();
 				uiPrompt(STR(Add_Malt));
-				uiMenu(STR(Continue_Yes_No));
+				uiButtonLabel(ButtonLabel(Continue_Yes_No));
 				_state = AS_AskAddMalt;
 				
-				#if BluetoothSupported == true
-				btReportEvent(RemoteEventAddMalt);
+				#if WirelessSupported == true
+				wiReportEvent(RemoteEventAddMalt);
 				#endif
 
 			}
@@ -3791,7 +3899,7 @@ void autoModeEventHandler(byte event)
 					// undone _askingSkipMashingStage
 					uiClearPrompt();
 					// not necessary , autoModeMashingStageFinished()
-					// will print eht menu againuiMenu(STR(Up_Down_Pause_STP));
+					// will print eht menu againuiButtonLabel(ButtonLabel(Up_Down_Pause_STP));
 					// unwind the change
 					uiRunningTimeHide(false);
 					_askingSkipMashingStage = false;
@@ -3804,9 +3912,9 @@ void autoModeEventHandler(byte event)
 					// NO
 					uiClearPrompt();
 					#if	MANUAL_PUMP_MASH == true
-					uiMenu(STR(Up_Down_PmPus_STP));
+					uiButtonLabel(ButtonLabel(Up_Down_PmPus_STP));
 					#else
-					uiMenu(STR(Up_Down_Pause_STP));
+					uiButtonLabel(ButtonLabel(Up_Down_Pause_STP));
 					#endif
 					// unwind the change
 					uiRunningTimeHide(false);
@@ -3854,7 +3962,7 @@ void autoModeEventHandler(byte event)
 					_askingSkipMashingStage = true;
 					uiClearPrompt();
 					uiPrompt(STR(Go_to_next_step));
-					uiMenu(STR(Continue_Yes_No));
+					uiButtonLabel(ButtonLabel(Continue_Yes_No));
 				}
 			}
 			else
@@ -3872,7 +3980,7 @@ void autoModeEventHandler(byte event)
 			if(isPumpRest())
 			{
 				// into rest
-				uiMenu(STR(_Pump_Rest_));
+				uiButtonLabel(ButtonLabel(_Pump_Rest_));
 				// stop heat
 				heatProgramOff();
 				//[TODO:] beep
@@ -3881,9 +3989,9 @@ void autoModeEventHandler(byte event)
 			{
 				// back from rest
 				#if MANUAL_PUMP_MASH == true
-				uiMenu(STR(Up_Down_PmPus_STP));
+				uiButtonLabel(ButtonLabel(Up_Down_PmPus_STP));
 				#else
-				uiMenu(STR(Up_Down_Pause_STP));
+				uiButtonLabel(ButtonLabel(Up_Down_Pause_STP));
 				#endif
 				heatOn();
 			}
@@ -3932,8 +4040,8 @@ void autoModeEventHandler(byte event)
 					
 						pumpRestSetEnabled(true);
 						
-						#if BluetoothSupported == true
-						btReportEvent(RemoteEventTemperatureReached);
+						#if WirelessSupported == true
+						wiReportEvent(RemoteEventTemperatureReached);
 						#endif
 
 					}
@@ -4029,8 +4137,8 @@ void autoModeEventHandler(byte event)
 					pumpOff();
 					
 					
-					#if BluetoothSupported == true
-					btReportEvent(RemoteEventBoilFinished);
+					#if WirelessSupported == true
+					wiReportEvent(RemoteEventBoilFinished);
 					#endif
 					buzzPlaySoundRepeat(SoundIdWaitUserInteraction);
 										
@@ -4066,10 +4174,6 @@ void autoModeEventHandler(byte event)
 					autoModeRecoveryTimeTracking = true;
 					#endif
 				
-					#if BluetoothSupported == true
-					btReportEvent(RemoteEventTemperatureReached);
-					#endif
-
 					_isBoilTempReached=true;
 					
 					//buzz temperature reach first
@@ -4082,7 +4186,11 @@ void autoModeEventHandler(byte event)
 					// start hop & boiling out timer
 					autoModeStartBoilingTimer();				
 
-					uiMenu(STR(Up_Down_Pause_Pmp));
+					#if WirelessSupported == true
+					wiReportEvent(RemoteEventTemperatureReached);
+					#endif
+
+					uiButtonLabel(ButtonLabel(Up_Down_Pause_Pmp));
 				}
 			}
 		}
@@ -4099,6 +4207,11 @@ void autoModeEventHandler(byte event)
 					if(gIsPumpOn) pumpOff();
 					else pumpOn();
 				}
+				else if (btnIsStartPressed)
+				{
+					// next stage
+					autoModeCoolingFinish();					
+				}
 				else
 				{
 					processAdjustButtons();
@@ -4113,8 +4226,8 @@ void autoModeEventHandler(byte event)
 					// next stage
 					autoModeCoolingFinish();
 					
-					#if BluetoothSupported == true
-					btReportEvent(RemoteEventTemperatureReached);
+					#if WirelessSupported == true
+					wiReportEvent(RemoteEventTemperatureReached);
 					#endif
 
 				}
@@ -4203,7 +4316,7 @@ void autoModeEventHandler(byte event)
 							uiRunningTimeShowInitial(_whirlpoolTime * 60);
 							tmPauseTimer();
 							
-							uiMenu(STR(x_x_Time_Pmp));
+							uiButtonLabel(ButtonLabel(x_x_Time_Pmp));
 						}
 						else
 						{
@@ -4212,7 +4325,7 @@ void autoModeEventHandler(byte event)
 							uiRunningTimeStartCountDown(_whirlpoolTime * 60);
 							tmSetTimeoutAfter((unsigned long)_whirlpoolTime*60*1000);
 							
-							uiMenu(STR(x_x_x_Pmp));
+							uiButtonLabel(ButtonLabel(x_x_x_Pmp));
 
 						}
 					}
@@ -4267,11 +4380,15 @@ void mainSetup(void)
 	uiClearScreen();
 
 	uiTitle(STR(welcome));
-	uiMenu(STR(Manual_Auto_Setup));
+	uiButtonLabel(ButtonLabel(Manual_Auto_Setup));
     uiTempDisplaySetPosition(TemperatureMainScreenPosition);
-    
-    #if BluetoothSupported == true
-    btReportCurrentStage(StageIdleScreen);
+
+    #if WiFiSupported == true
+    uiPrintIpAddress();
+	#endif
+	    
+    #if WirelessSupported == true
+    wiReportCurrentStage(StageIdleScreen);
     #endif
 }
 
@@ -4324,7 +4441,9 @@ void switchApplication(byte screenId)
 {
 	currentScreen=allScreens+screenId;
 	//turn off temperature update by default, let those who want turn it on
-//	uiClearSettingRow();
+
+	uiClearSettingRow();
+
 	uiRunningTimeStop();
 	uiTempDisplayHide();
 	
@@ -4352,15 +4471,12 @@ void backToMain(void)
 // *************************
 //*  Main procedure
 // *************************
-#if PerformanceProfiling == true
-unsigned long lastLoopTime;
-unsigned long longestTime;
-#endif
 
 void setup() {
   // put your setup code here, to run once:
 #if SerialDebug == true
-Serial.begin(115200);
+	Serial.begin(115200);
+	Serial.println("BrewManiac starts");
 #endif	
 	//[TODO:] move them to individual initilization code?
 	pinMode (HeatControlPin, OUTPUT);
@@ -4379,19 +4495,12 @@ Serial.begin(115200);
 		
 	switchApplication(MAIN_SCREEN);
 
-#if BluetoothSupported == true
-	btInitialize();
+#if WirelessSupported == true
+	wiInitialize();
 #endif
 
-#if PerformanceProfiling == true
-	lastLoopTime=gCurrentTimeInMS;
-#endif
 
 }
-
-#if SerialDebug == true
-#include "serialdebug.h"
-#endif
 
 //*********************************************************************
 //*********************************************************************
@@ -4442,8 +4551,8 @@ void loop() {
 	pumpThread();
 	buzzThread();
 
-#if BluetoothSupported == true	
-	btThread();
+#if WirelessSupported == true	
+	wiThread();
 #endif	
 	// handler state machine
 
@@ -4459,17 +4568,6 @@ void loop() {
 
 void loop() {
 
-#if PerformanceProfiling == true
-	unsigned long diff=gCurrentTimeInMS - lastLoopTime;
-	lastLoopTime=gCurrentTimeInMS;
-	if(longestTime < diff)
-	{
-	 	longestTime=diff;
-		// use bluetooth to log out data
-		btReportDebugInfo((int)longestTime>>4);
-	}
-	
-#endif
 
 
 	// Process Events
@@ -4518,13 +4616,10 @@ void loop() {
 	pumpThread();
 	buzzThread();
 
-#if BluetoothSupported == true	
-	btThread();
+#if WirelessSupported == true	
+	wiThread();
 #endif	
 	// handler state machine
 
-#if SerialDebug == true
-	rmReceive();
-#endif	
 }// end of loop();
 #endif
