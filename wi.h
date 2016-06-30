@@ -7,10 +7,11 @@
 #define MAX_RETRY 5
 
 
-#define DEBUG_WIFI  true
 
 #if SerialDebug != true
 #define DEBUG_WIFI  false
+#else
+#define DEBUG_WIFI  true
 #endif
 
 #if DEBUG_WIFI == true

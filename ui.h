@@ -583,7 +583,7 @@ void uiDisplayTemperatureAndRunningTime(void)
     	{
     		// counting down
     		count=_countingTimeRef - gCurrentTimeInSec;
-    		if(count > 24*60*60*1000)
+    		if(count > 86400000L)
     		{
     			count =0;
     			_countingTimeDirection = COUNTING_PAUSE;
