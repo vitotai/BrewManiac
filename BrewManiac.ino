@@ -31,7 +31,7 @@
 #define Pcb_ArdBir_DanielXan 3
 
 // BOARD definition.
-#define BOARD MRE168
+#define BOARD Pcb_ArdBir_DanielXan
 
 /**** I2C LCD ******/
 // not usingI2C_LCD by default 
@@ -68,7 +68,7 @@ const byte SensorPin=7;
 #define ButtonEnterPin  A0
 // use Serial1
 #define UseSoftwareSerial false
-#define WirelessHardwarePort Serial1
+#define WirelessHardwarePort Serial
 #endif
 
 #if BOARD == UNOTEST
@@ -98,6 +98,9 @@ const byte SensorPin=7;
 #define WirelessNone 0
 #define WirelessBluetooth 1
 #define WirelessWiFi 2
+//***********************************************************
+/// !!!! NOTE. Bluetooth might not work normally 
+//***********************************************************
 
 #define WirelessConnection WirelessWiFi
 
