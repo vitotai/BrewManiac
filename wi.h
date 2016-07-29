@@ -397,6 +397,7 @@ void wiReportSettingTemperature()
 
 void wiTogglePwm(void)
 {
+	if(!gIsWifiConnected) return;
 	wiSendStatus();
 }
 unsigned long _wifiReportPeriod;
