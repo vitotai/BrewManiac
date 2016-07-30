@@ -106,6 +106,9 @@ const byte SensorPin=7;
 
 /** Functions */
 
+
+#define SimpleMashStep true
+
 // manual control over pump during mash
 #define MANUAL_PUMP_MASH true
 // DELAY start
@@ -349,7 +352,6 @@ typedef struct _CScreen{
 	EventHandlerFunc eventHandler;
 }CScreen;
 
-#if 0 //opt-code
 
 #define MAIN_SCREEN 0
 #define SETUP_SCREEN 1
@@ -419,6 +421,7 @@ void setEventMask(byte mask)
 // *************************
 //*  EEPROM map
 // *************************
+
 #include "string.h"
 #include "ui.h"
 
@@ -1746,7 +1749,6 @@ void settingUnitEventHandler(byte)
 
 void displayStageTemperature(int value)
 {
-	
 	float temperature=TempFromStorage(value);
 	uiSettingShowTemperature(temperature,2);
 }
@@ -1788,9 +1790,9 @@ void settingAutomationDisplayItem(void)
 		//9. boil time
 		//10. time hop number #
 	
-	if( _editingStageAux == 0   // temerature editing
+	if( _editingStageAux == 1   // 1:time editing of stage 1 to 5, step 6 has no End, nor More optoin
 		&& _editingStage>0 && _editingStage < 6) // except MashIn/MashOut, and in Temperature editing
-		uiButtonLabel(ButtonLabel(Up_Down_Skip_Ok));
+		uiButtonLabel(ButtonLabel(Up_Down_End_More));
 	else
 		uiButtonLabel(ButtonLabel(Up_Down_x_Ok));
 			
@@ -1799,6 +1801,19 @@ void settingAutomationDisplayItem(void)
 		// Mash In:temp only
 		editItem(STR(Mash_In),value,ToTempInStorage(75),ToTempInStorage(20),&displayStageTemperature);
 	}
+#if SimpleMashStep == true
+	else if(_editingStage >0 && _editingStage < 7)
+	{
+		int minTemp=(_editingStage==1)? (ToTempInStorage(20)):readSettingWord(PS_StageTemperatureAddr(_editingStage-1));
+		
+		if (_editingStageAux == 0){
+			editItem(STR(Mash_x),value,ToTempInStorage(76),minTemp,&displayStageTemperature);
+		}else{
+			editItem(STR(Mash_x),value,MAX_STAGE_TIME,MIN_STAGE_TIME,&displayTime);
+		}		
+		editItemTitleAppendNumber(_editingStage); 
+	}
+#else
 	else if(_editingStage ==1)
 	{
 		if (_editingStageAux == 0)
@@ -1841,6 +1856,7 @@ void settingAutomationDisplayItem(void)
 		else
 			editItem(STR(aAmylase2),value,MAX_STAGE_TIME,MIN_STAGE_TIME,&displayTime);	
 	}
+#endif
 	else if(_editingStage ==7)
 	{
 		// MashOut
@@ -1929,7 +1945,17 @@ void settingAutoEventHandler(byte)
 			// boiling time;
 			
 			_editingStageAux=0;
-			_editingStage++;
+			int hopsNum=readSetting(PS_NumberOfHops);
+			if(hopsNum){
+				_editingStage++;
+			
+			}else{
+				finishAutomationEdit();
+				
+				uiClearSettingRow();
+				switchApplication(SETUP_SCREEN);
+				return;
+			}
 		}
 		else // if(_editingStage == 10)
 		{
@@ -1960,6 +1986,20 @@ void settingAutoEventHandler(byte)
 	}
 	else if(btnIsStartPressed)
 	{
+#if SimpleMashStep == true
+		// only handle in stage 1 to 5
+		if((_editingStage >=1 && _editingStage <6)
+			&& _editingStageAux == 1 )
+		{
+			int value=editItemValue();
+			changeAutomationTime(_editingStage,(byte)value);
+			// End Mash step and go to MashOut
+			changeAutomationTime(_editingStage +1,(byte)0);
+			_editingStage = 7;
+			_editingStageAux=0;
+			settingAutomationDisplayItem();
+		}
+#else
 		// only handle in stage 1 to 5
 		if((_editingStage >=1 && _editingStage <6)
 			&& _editingStageAux == 0 )
@@ -1971,6 +2011,7 @@ void settingAutoEventHandler(byte)
 			_editingStage++;
 			settingAutomationDisplayItem();
 		}
+#endif
 	}
 	else if(btnIsUpPressed)
 	{
@@ -2826,6 +2867,9 @@ byte autoModeGetRecoveryTime(void)
 //
 
 byte _mashingStep;
+#if SimpleMashStep == true
+byte _numberMashingStep;
+#endif
 
 //boolean _mashingTemperatureReached;
 #define _mashingTemperatureReached gIsTemperatureReached
@@ -2835,22 +2879,43 @@ boolean _askingSkipMashingStage;
 
 void autoModeNextMashingStep(void)
 {
-	//[TODO:] the algorithm here assumes
-	//  1. step 6 (alphaAmylase2) and step 7 (MashOut) can not be skipped.!!
-	// once they don't. we should check it here before go to next stage
-	//	
 	
+	// in autoModeEnterMashing, this value is set to zero
+	// so it really starts from 1.
 	_mashingStep++;
 
 	
 	byte time;
+	
+	#if SimpleMashStep == true
+
+	if (_mashingStep > _numberMashingStep){
+		// go direct to mashout
+		_mashingStep = 7;
+	}
+	time = readSetting(PS_StageTimeAddr(_mashingStep));
+	if(time==0) time=1;
+	#else
+
+	//[TODO:] the algorithm here assumes
+	//  1. step 6 (alphaAmylase2) and step 7 (MashOut) can not be skipped.!!
+	// once they don't. we should check it here before go to next stage
+	//	
+
 	while((time = readSetting(PS_StageTimeAddr(_mashingStep))) == 0)
 	{
 		_mashingStep++;
 	}
+	#endif
 	// 	if(_mashingStep > 7), mashout time will always more than 1
 	
-	uiAutoModeStage(_mashingStep);
+	#if SimpleMashStep == true
+	if(_mashingStep > 0 && _mashingStep <7)
+		uiAutoModeMashTitle(_mashingStep,_numberMashingStep);
+	else
+	#endif
+		uiAutoModeStage(_mashingStep);
+	
 	uiRunningTimeSetPosition(RunningTimeNormalPosition);
 	uiRunningTimeShowInitial(time * 60);
 
@@ -2902,16 +2967,35 @@ void autoModeNextMashingStep(void)
 	#endif	
 }
 
+#if SimpleMashStep == true
+
+void autoModeGetMashStepNumber(void)
+{	
+	byte idx=1;
+	byte time;
+	while(idx < 7 && (time = readSetting(PS_StageTimeAddr(idx))) != 0)
+	{
+		idx++;
+	}
+	_numberMashingStep = idx -1; // total mash steps.
+}
+#endif
+
 void autoModeEnterMashing(void)
 {
 	_state = AS_Mashing;
 	setEventMask(TemperatureEventMask | ButtonPressedEventMask | TimeoutEventMask | PumpRestEventMask);
 
 	_askingSkipMashingStage = false;
-	_mashingStep = 0; // 0 is mash in , real mashing starts from 1
+	_mashingStep = 0; // 0 is mash in , real mashing starts from 1, this number will be increased in 
+					  // autoModeNextMashingStep() later.
 
 #if	MANUAL_PUMP_MASH == true
 	gManualPump=false;
+#endif
+
+#if SimpleMashStep == true
+	autoModeGetMashStepNumber();
 #endif
 
 	autoModeNextMashingStep();
@@ -3538,6 +3622,9 @@ void autoModeResumeProcess(void)
 		// just enter mashing step ... 
 		_state = AS_Mashing;
 		_askingSkipMashingStage = false;
+		#if SimpleMashStep == true
+		autoModeGetMashStepNumber();
+		#endif
 		_mashingStep = stage - 1; // next step will increase the step		
 		autoModeNextMashingStep();
 		// adjust timer if necessary

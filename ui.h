@@ -899,7 +899,40 @@ void uiAutoModeTitle(void)
 	lcd.setCursor(1,0);
 	LCD_print_P(STR(Auto_Label));
 }
+#if SimpleMashStep == true
+const char * const  AutoStepNames[] PROGMEM =
+{
+STR( Mash_In),
+NULL,
+NULL,
+NULL, 
+NULL,
+NULL,
+NULL,
+STR( Mash_out), 
+STR( Boil), 
+STR( Cooling),
+STR( Whirlpool)
+};
 
+void uiAutoModeMashTitle(byte idx,byte num)
+{
+	lcd.setCursor(10,0);
+	byte i;
+	
+	byte len=LCD_print_P(STR(Mash_x));
+	lcd.write('0' +idx);
+	lcd.write('/');
+	lcd.write('0' + num);
+
+#if WirelessSupported == true
+	for(;i<19;i++) lcd.write(' ');
+#else
+	for(;i<20;i++) lcd.write(' ');
+#endif
+}
+
+#else
 const char * const  AutoStepNames[] PROGMEM =
 {
 STR( Mash_In),
@@ -914,6 +947,7 @@ STR( Boil),
 STR( Cooling),
 STR( Whirlpool)
 };
+#endif
 
 #define BoilingStage 8
 #define CoolingStage 9
@@ -922,11 +956,12 @@ STR( Whirlpool)
 void uiAutoModeStage(byte idx)
 {
 	lcd.setCursor(10,0);
-	
+
 	str_t display = (str_t)pgm_read_word(&(AutoStepNames[idx]));
 	
 	byte len=LCD_print_P(display);
 	byte i=len+10;
+	
 #if WirelessSupported == true
 	for(;i<19;i++) lcd.write(' ');
 #else
