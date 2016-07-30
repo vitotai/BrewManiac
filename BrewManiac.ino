@@ -351,23 +351,6 @@ typedef struct _CScreen{
 
 #if 0 //opt-code
 
-#define MAIN_SCREEN 	&mainSetup,&mainEventHandler
-
-#define SETUP_SCREEN 	&menuSetup,&menuEventHandler
-
-#define PID_SETTING_SCREEN 	&settingPidSetup,&settingPidEventHandler
-
-#define UNIT_SETTING_SCREEN 	&settingUnitSetup,&settingUnitEventHandler
-
-#define AUTO_SETTING_SCREEN 	&settingAutoSetup,&settingAutoEventHandler
-
-
-#define MANUAL_MODE_SCREEN 	&manualModeSetup,&manualModeEventHandler
-
-#define AUTO_MODE_SCREEN 	&autoModeSetup,&autoModeEventHandler
-
-
-#else
 #define MAIN_SCREEN 0
 #define SETUP_SCREEN 1
 #define PID_SETTING_SCREEN 2
@@ -417,7 +400,7 @@ const CScreen allScreens[]  =
 }
 #endif
 };
-#endif
+
 
 byte _currentEventMask;
 //#define setEventMask(a) _currentEventMask=(a)
@@ -1791,10 +1774,11 @@ void settingAutomationDisplayItem(void)
 	
 	if(_editingStage <=7) // from MashIn,Phytase,Glucanase,Protease,bAmylase,aAmylase1,aAmylase2,MashOut
 	{
-		if(_editingStageAux==0)
+		if(_editingStageAux==0){
 			value = readSettingWord(PS_StageTemperatureAddr(_editingStage));
-		else
-		{
+			// round to .25
+			value = ToTempInStorage(round025(TempFromStorage(value)));
+		}else{
 			value =readSetting(PS_StageTimeAddr(_editingStage));
 			if (value==0) value=1;
 		}
