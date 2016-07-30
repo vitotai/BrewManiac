@@ -349,7 +349,6 @@ typedef struct _CScreen{
 	EventHandlerFunc eventHandler;
 }CScreen;
 
-#if 0 //opt-code
 
 #define MAIN_SCREEN 0
 #define SETUP_SCREEN 1
@@ -1929,7 +1928,17 @@ void settingAutoEventHandler(byte)
 			// boiling time;
 			
 			_editingStageAux=0;
-			_editingStage++;
+			int hopsNum=readSetting(PS_NumberOfHops);
+			if(hopsNum){
+				_editingStage++;
+			
+			}else{
+				finishAutomationEdit();
+				
+				uiClearSettingRow();
+				switchApplication(SETUP_SCREEN);
+				return;
+			}
 		}
 		else // if(_editingStage == 10)
 		{
