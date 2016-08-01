@@ -918,12 +918,13 @@ STR( Whirlpool)
 void uiAutoModeMashTitle(byte idx,byte num)
 {
 	lcd.setCursor(10,0);
-	byte i;
 	
 	byte len=LCD_print_P(STR(Mash_x));
 	lcd.write('0' +idx);
 	lcd.write('/');
 	lcd.write('0' + num);
+
+	byte i=10+3+len;
 
 #if WirelessSupported == true
 	for(;i<19;i++) lcd.write(' ');
