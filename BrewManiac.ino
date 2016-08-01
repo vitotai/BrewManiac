@@ -1258,6 +1258,7 @@ void pumpThread(void)
   	} 
   	else // of if(gCurrentTemperature >= _pumpStopTemp)
   	{
+  		if(_pumpRestTime==0) return;
   		// if under pump stop temperature
       	if((gCurrentTimeInMS - _pumpLastSwitchOnTime) < (unsigned long)_pumpCycleTime) 
       	{
@@ -3117,7 +3118,14 @@ void autoModeExitPause(void)
 	uiClearScreen();
 	
 	uiAutoModeTitle();
-	uiAutoModeStage(_mashingStep);
+	
+	#if SimpleMashStep == true
+	if(_mashingStep > 0 && _mashingStep <7)
+		uiAutoModeMashTitle(_mashingStep,_numberMashingStep);
+	else
+	#endif
+		uiAutoModeStage(_mashingStep);
+
 
 	// temperateure position
 	uiTempDisplaySetPosition(TemperatureAutoModePosition);

@@ -470,31 +470,35 @@ void wiSendRecipe(bool response)
 	len += tNum;
 
 #if SimpleMashStep == true
+	bool mashend=false;
 	for(stage=1;stage<8;stage++)
 	{
 		byte time=readSetting(PS_StageTimeAddr(stage));
-		len += (time==0)? 1:4;
-		if(time ==0) break;
-	}
-	stage++;
-	for(;stage<8;stage++)
-	{
-		len ++;
+		if(mashend && stage < 7){
+			len ++;
+		}else{
+			len += (time==0)? 1:4;
+			if(time ==0){
+				mashend=true;
+			}
+		}
 	}
 	
 	// start response
 	WiStart(response,VarPDU(WiRecipeInformation))
 	WiPut(response,len)
-	
+
+	mashend=false;
 	for(stage=0;stage<8;stage++)
 	{
 		byte time=readSetting(PS_StageTimeAddr(stage));
 		if(stage ==0) time =1;
-		if(time==0)
+
+		if((mashend && stage < 7) ||(time==0))
 		{
 			byte stageByte= 0xF0 | stage;
 			WiPut(response,stageByte)
-			break;
+			mashend = true;
 		}
 		else
 		{
@@ -504,12 +508,6 @@ void wiSendRecipe(bool response)
 			WiPut(response,time)
 			WiPutInt(response,temp)
 		}
-	}
-	stage++;
-	for(;stage<8;stage++)
-	{
-		byte stageByte= 0xF0 | stage;
-		WiPut(response,stageByte)
 	}
 #else //#if SimpleMashStep == true
 	for(stage=1;stage<8;stage++)
