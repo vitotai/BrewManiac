@@ -97,7 +97,9 @@ DefineButtonLabel( Up_x_Quit_Ok,      "Up   ---  Quit  Ok",25);
 
 DefineButtonLabel( Up_Down_Pause_Pmp, "UP* *DWN Pause Pmp",26);
 DefineButtonLabel( Up_Down_RUN_Pmp,   "UP* *DWN  RUN  Pmp",27);
-
+#if SimpleMashStep == true
+DefineButtonLabel( Up_Down_End_More,  "UP* *DWN Done More",28);
+#endif
 // end of menu
 
 StringConst( Manual_Mode ,"MANUAL MODE");
@@ -170,6 +172,8 @@ StringConst( right_Para, ")");
 StringConst( Hops_Number_x, "Hop #");
 
 StringConst( Manage_Recipes, "Manage Recipes");
-
+#if SimpleMashStep == true
+StringConst(Mash_x,"Mash ");
+#endif
 
 #endif

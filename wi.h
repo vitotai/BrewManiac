@@ -465,15 +465,57 @@ void wiSendRecipe(bool response)
 	// first step is to know the length
 	byte len=4; // always send mash-in
 	byte stage;
+
+	byte tNum=readSetting(PS_NumberOfHops) +1; // plus Boil Time
+	len += tNum;
+
+#if SimpleMashStep == true
+	bool mashend=false;
+	for(stage=1;stage<8;stage++)
+	{
+		byte time=readSetting(PS_StageTimeAddr(stage));
+		if(mashend && stage < 7){
+			len ++;
+		}else{
+			len += (time==0)? 1:4;
+			if(time ==0){
+				mashend=true;
+			}
+		}
+	}
+	
+	// start response
+	WiStart(response,VarPDU(WiRecipeInformation))
+	WiPut(response,len)
+
+	mashend=false;
+	for(stage=0;stage<8;stage++)
+	{
+		byte time=readSetting(PS_StageTimeAddr(stage));
+		if(stage ==0) time =1;
+
+		if((mashend && stage < 7) ||(time==0))
+		{
+			byte stageByte= 0xF0 | stage;
+			WiPut(response,stageByte)
+			mashend = true;
+		}
+		else
+		{
+			int temp=readSettingWord(PS_StageTemperatureAddr(stage));
+
+			WiPut(response,stage)
+			WiPut(response,time)
+			WiPutInt(response,temp)
+		}
+	}
+#else //#if SimpleMashStep == true
 	for(stage=1;stage<8;stage++)
 	{
 		byte time=readSetting(PS_StageTimeAddr(stage));
 		len += (time==0)? 1:4;
 	}
 	
-	byte tNum=readSetting(PS_NumberOfHops) +1; // plus Boil Time
-	len += tNum;
-
 	// start response
 	WiStart(response,VarPDU(WiRecipeInformation))
 
@@ -497,6 +539,8 @@ void wiSendRecipe(bool response)
 			WiPutInt(response,temp)
 		}
 	}
+#endif //#if SimpleMashStep == true
+
 	// finish mash schedule. now boil & hop
 	
 	byte i=0;
