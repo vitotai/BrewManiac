@@ -93,6 +93,8 @@ const byte SensorPin=7;
 //*  software Configuration
 // *************************
 
+#define MaximumNumberOfSensors 1
+
 /** WirelessConnection values */
 
 #define WirelessNone 0
@@ -208,8 +210,8 @@ const byte SensorPin=7;
 //{debug
 //overrite definition to save some memory
 #if BOARD == UNOTEST
-#define FakeHeating true
-#define USE_DS18020 false
+#define FakeHeating false
+#define USE_DS18020 true
 
 #define SupportAutoModeRecovery false
 #define SupportManualModeCountDown false
@@ -218,7 +220,7 @@ const byte SensorPin=7;
 #define BT_MODULE_INITIALIZATION false
 #define BT_Menu false
 #endif //over write stting for test board
-
+#define SerialDebug false
 //}debug
 // *************************
 //*  global variables
@@ -247,6 +249,16 @@ boolean gIsPaused;
 
 #if MANUAL_PUMP_MASH == true
 boolean gManualPump;
+#endif
+
+#if MaximumNumberOfSensors > 1
+byte gSensorAddresses[MaximumNumberOfSensors][8];
+byte gSensorNumber;
+byte gPrimarySensorIndex;
+byte gAuxSensorIndex;
+double gAuxTemperature;
+
+double gTemperatureReading[MaximumNumberOfSensors];
 #endif
 // *************************
 //*  function declaration
@@ -295,7 +307,10 @@ void btMenuSetup(void);
 void btMenuEventHandler(byte);
 #endif
 
-
+#if MaximumNumberOfSensors > 1
+void sensorMenuSetup(void);
+void sensorMenuEventHandler(byte);
+#endif
 
 #define ConvertF2C(d) (((d)-32)/1.8)
 #define ConvertC2F(d) (((d)*1.8)+32)
@@ -366,6 +381,10 @@ typedef struct _CScreen{
 #define BT_MENU_SCREEN 7
 #endif
 
+#if MaximumNumberOfSensors > 1
+#define SENSOR_SCREEN 7
+#endif
+
 const CScreen allScreens[]  =
 {{
 	&mainSetup,
@@ -399,6 +418,12 @@ const CScreen allScreens[]  =
 {	
 	&btMenuSetup,
 	&btMenuEventHandler,
+}
+#endif
+#if MaximumNumberOfSensors > 1
+{	
+	&sensorMenuSetup,
+	&sensorMenuEventHandler,
 }
 #endif
 };
@@ -765,19 +790,134 @@ void dsInizialize(void)
   ds.reset();
   ds.skip();
 }
+
+
+#if	MaximumNumberOfSensors	> 1
+
+byte scanSensors(byte max,byte addresses[][8]) {
+	byte i;
+  	byte m=0;
+  	Serial.print("Looking for 1-Wire devices...\n\r");// "\n\r" is NewLine 
+
+  	while(m< max &&  ds.search(addresses[m])) {
+		//_printAddress(addresses[m]);
+		//Serial.println("");
+    	if ( OneWire::crc8( addresses[m], 7) != addresses[m][7]) {
+#if SerialDebug == true    	
+			Serial.print("CRC is not valid!\n\r");
 #endif
+      		return m;
+    	}
+    	if (addresses[m][0] != 0x28)
+    	{
+    		break;
+		}
+#if SerialDebug == true    	
+		Serial.println("Found ");
+#endif
+    	m++;
+	}
+	//  Serial.println();
+#if SerialDebug == true    	
+	Serial.println("Done");
+#endif
+	ds.reset_search();
+
+	return m;
+}
+
+void loadSensorSetting(void)
+{
+	gPrimarySensorIndex=0;
+	
+	// read Temperature sensor addresses.
+	gSensorNumber=0;
+  	for(;gSensorNumber< MaximumNumberOfSensors; gSensorNumber++) {
+		// read sensor address from storage.
+
+		int base=SensorAddressOf(gSensorNumber);
+		for(byte j=0;j<8;j++){
+			gSensorAddresses[gSensorNumber][j]=readSetting(base +j);
+		}
+		
+    	if ( OneWire::crc8( gSensorAddresses[gSensorNumber], 7) != gSensorAddresses[gSensorNumber][7]) {
+#if SerialDebug == true    	
+			Serial.print("CRC is not valid!\n\r");
+#endif
+			break;
+    	}
+	}
+// if more than one sensor available, use the second as aux by default	
+	gAuxSensorIndex =(gSensorNumber>1)? 1:0; 
+	
+#if SerialDebug == true    	
+		Serial.print("Number of sensors:");
+		Serial.println(gSensorNumber);
+#endif
+
+}
+
+#endif //#if	MaximumNumberOfSensors	> 1
+
+#endif //#if USE_DS18020 == true
 
 void tpInitialize(void)
 {
-	gCurrentTemperature = 19.99;
+	gCurrentTemperature = INVALID_TEMP_C;
 	gBoilStageTemperature=readSetting(PS_BoilTemp);
-	
+
+
+#if	MaximumNumberOfSensors	> 1
+	gAuxTemperature = INVALID_TEMP_C;
+
+	loadSensorSetting();
+#endif
 }
 
 // the following code basically comes from Open ArdBir
 
 #define DSCMD_CONVERT_T 0x44
 #define DSCMD_READ_SCRATCHPAD 0xBE 
+
+#if USE_DS18020 == true && MaximumNumberOfSensors > 1
+byte _gReadingIndex;
+
+float  _readTemperature(byte *addr)
+{
+	byte sensorData[9];
+
+ 	ds.reset();
+ 	ds.select(addr);
+    
+    // request data
+    ds.write(DSCMD_READ_SCRATCHPAD);  
+    for ( byte i = 0; i < 9; i++) {           // with crc we need 9 bytes
+      		sensorData[i] = ds.read();
+    } 
+    	/* add this routine for crc version */
+    if ( OneWire::crc8(sensorData, 8) != sensorData[8]) {  //if checksum fails start a new conversion right away
+      	return INVALID_TEMP_C;
+    }
+	// data got!
+    unsigned int raw = (sensorData[1] << 8) + sensorData[0];
+    
+    float temperature = (raw & 0xFFFC) * 0.0625;
+    return temperature;
+}
+#define SensorPreMash 0
+#define SensorMash 1
+#define SensorMashOut 2
+#define SensorBoil 3
+#define SensorCooling 4
+
+void setSensorForStage(byte s)
+{
+	byte pidx=readSetting(PS_SensorUseAddressOf(s));
+	byte paux=readSetting(PS_AuxSensorAddressOf(s));
+	gPrimarySensorIndex=(pidx >= gSensorNumber)? 0:pidx;
+	gAuxSensorIndex=(paux >=gSensorNumber)? 0: paux;
+}
+#endif
 
 void tpReadTemperature(void)
 {
@@ -790,6 +930,10 @@ void tpReadTemperature(void)
 	  	// start conversion and return
     	ds.write(DSCMD_CONVERT_T, 0);
     	_isConverting = true;
+
+#if MaximumNumberOfSensors > 1
+    	_gReadingIndex=0;
+#endif
     	return;
   	}
   	// else if convert start 
@@ -797,9 +941,34 @@ void tpReadTemperature(void)
   	//{ 
   	
   	// check for conversion if it isn't complete return if it is then convert to decimal
+
+#if MaximumNumberOfSensors > 1
+	// converting, check first device
+	for(;_gReadingIndex < gSensorNumber;_gReadingIndex++)
+	{
+		ds.reset();
+  		ds.select(gSensorAddresses[_gReadingIndex]);
+		// check for conversion if it isn't complete return if it is then convert to decimal
+    	byte busy = ds.read_bit();
+    	if (busy == 0)
+    	{
+//    		Serial.println(" not ready");
+    	 	return;
+    	}
+	}
+	// all device are ready.
+	for(byte i=0;i<gSensorNumber;i++)
+	{
+		gTemperatureReading[i]=_readTemperature(gSensorAddresses[i])
+						+ ((float)(readSetting(CalibrationAddressOf(i)) - 50) / 10.0);
+	}
+	_isConverting=false;
+	gCurrentTemperature =  gTemperatureReading[gPrimarySensorIndex];
+	gAuxTemperature = gTemperatureReading[gAuxSensorIndex];
+
+#else //#if MaximumNumberOfSensors > 1
     byte busy = ds.read_bit();
     if (busy == 0) return;
-    
 	// reset & "select" again
     dsInizialize();
     
@@ -826,7 +995,10 @@ void tpReadTemperature(void)
     gCurrentTemperature += ((float)(readSetting(PS_Offset) - 50) / 10.0);
     _isConverting = false;
   	//} 
-#endif
+
+#endif   //#if MaximumNumberOfSensors > 1
+
+#endif //#if USE_DS18020 == true
 }
 
 void pumpLoadParameters(void);
@@ -1453,12 +1625,23 @@ void displayPercentage(int data)
 //**************************************************************
 byte _currentPidSetting;
 
+#if MaximumNumberOfSensors > 1
+byte _pidSettingAux;
+#endif
+
 // table implementation takes up a lot of memory.
 // change to hard-coded.
 #define PID_SETTING_NUM 9
 void settingPidEditSetting(void)
 {	
-	int value=(int)readSetting(PS_AddrOfPidSetting(_currentPidSetting));
+	int value;
+#if MaximumNumberOfSensors > 1
+
+	if(_currentPidSetting==7)
+		value=(int)readSetting(CalibrationAddressOf(_pidSettingAux));	
+	else
+#endif
+		value=(int)readSetting(PS_AddrOfPidSetting(_currentPidSetting));
 	
 	//editItem(str_t label, byte value, byte max, byte min,CDisplayFunc displayFunc)
 #if ElectronicOnly != true	
@@ -1478,8 +1661,12 @@ void settingPidEditSetting(void)
 		editItem(STR(WindowSet_ms),value,7500/250,4000/250,& displayMultiply250);
 	else if(_currentPidSetting==6)
 		editItem(STR(Heat_in_Boil),value,100,0,& displayPercentage);
-	else if(_currentPidSetting==7)
+	else if(_currentPidSetting==7){
 		editItem(STR(Calibration),value,100,0,&displayTempShift50Divide10);
+#if MaximumNumberOfSensors > 1		
+		editItemTitleAppendNumber(_pidSettingAux+1);
+#endif
+	}
 #if ElectronicOnly != true		
 	else if(_currentPidSetting==8)
 		editItem(STR(Hysteresi),value,100,0,&displayDivide10);
@@ -1495,6 +1682,10 @@ void settingPidSetup(void)
 	_currentPidSetting=1;
 #endif
 
+#if MaximumNumberOfSensors > 1
+	_pidSettingAux =0;
+#endif
+
 	settingPidEditSetting();
 }
 
@@ -1503,14 +1694,18 @@ void settingPidEventHandler(byte)
 	if(btnIsEnterPressed)
 	{
 		byte value=(byte)editItemValue();
-		changeSettingValue(PS_AddrOfPidSetting(_currentPidSetting),value);
 		
-		//go to next setting
-		_currentPidSetting ++;		
+		#if MaximumNumberOfSensors > 1			
+		if(_currentPidSetting < (PID_SETTING_NUM -2))
+		#endif
+			changeSettingValue(PS_AddrOfPidSetting(_currentPidSetting),value);
 
 #if ElectronicOnly != true
 		if(readSetting(PS_UseGas))
 		{
+			//go to next setting
+			_currentPidSetting ++;		
+
 			// unavailable setting: 1,2,3,4,5
 			if(_currentPidSetting ==1) _currentPidSetting=6;
 			
@@ -1526,12 +1721,33 @@ void settingPidEventHandler(byte)
 #endif
 		{
 			// use electric, // unavailable setting: last one
-			if(_currentPidSetting == (PID_SETTING_NUM -1)) 
+			if(_currentPidSetting == (PID_SETTING_NUM -2))
 			{
-				// last item is unavailable for electric setting
+			#if MaximumNumberOfSensors > 1
+				changeSettingValue(CalibrationAddressOf(_pidSettingAux),value);
+				_pidSettingAux++;
+				
+				if (_pidSettingAux == gSensorNumber)
+				{
+			#endif
+					// last item is unavailable for electric setting
+					uiClearSettingRow();
+					switchApplication(SETUP_SCREEN);
+					return;
+			#if MaximumNumberOfSensors > 1			
+				}
+			}
+			else if(_currentPidSetting == (PID_SETTING_NUM -3) && gSensorNumber==0)
+			{
 				uiClearSettingRow();
 				switchApplication(SETUP_SCREEN);
-				return;
+				return;			
+			#endif
+			}
+			else
+			{
+				//go to next setting
+				_currentPidSetting ++;		
 			}
 		}
 		// not last item, (if it is last item, it won't run through here)
@@ -2211,20 +2427,190 @@ void btMenuEventHandler(byte event)
 #endif
 
 // *************************
+//*  Sensor setup
+// *************************
+#if MaximumNumberOfSensors > 1
+#define  _sensorSettingIndex _editingStage
+#define _sensorSettingAux _editingStageAux
+
+byte _sensorSelection;
+
+void sensorMenuItem(void)
+{
+	if(_sensorSettingIndex ==0)
+	{
+		if(gSensorNumber==0){
+			uiSettingTitle(STR(No_Sensor_Found));
+			uiButtonLabel(ButtonLabel(x_x_x_Ok));
+			return;
+		}
+		//else
+		_sensorSelection=0;
+		uiSettingSensorIndex(_sensorSettingAux);
+		uiSettingSensorAddress(gSensorAddresses[_sensorSelection],gTemperatureReading[_sensorSelection]);
+		if(gSensorNumber ==1)
+			uiButtonLabel(ButtonLabel(x_x_x_Ok));
+		else
+			uiButtonLabel(ButtonLabel(x_Down_x_Ok));
+	}
+	else 
+	{
+		if(_sensorSettingIndex ==1){
+			if(_sensorSettingAux==0)
+				uiSettingTitle(STR(Sensor_PreMash));
+			else
+				uiSettingTitle(STR(AuxSensor_PreMash));
+		}else if(_sensorSettingIndex ==2){
+			if(_sensorSettingAux==0)
+				uiSettingTitle(STR(Sensor_Mash));
+			else
+				uiSettingTitle(STR(AuxSensor_Mash));
+		}else if(_sensorSettingIndex ==3){
+			if(_sensorSettingAux==0)
+				uiSettingTitle(STR(Sensor_MashOut));
+			else
+				uiSettingTitle(STR(AuxSensor_MashOut));
+
+		}else if(_sensorSettingIndex ==4){
+			if(_sensorSettingAux==0)
+				uiSettingTitle(STR(Sensor_Boil));
+			else
+				uiSettingTitle(STR(AuxSensor_Boil));
+
+		}else{  // 5
+			if(_sensorSettingAux==0)
+				uiSettingTitle(STR(Sensor_Cooling));
+			else
+				uiSettingTitle(STR(AuxSensor_Cooling));
+		}	
+		_sensorSelection=0;
+		uiSettingDisplayNumber((float)_sensorSelection+1,0);
+		uiButtonLabel(ButtonLabel(Up_Down_x_Ok));
+	}
+}
+
+void sensorMenuSetup(void)
+{
+	_sensorSettingIndex=0;
+	_sensorSettingAux=0;
+	gSensorNumber=scanSensors(MaximumNumberOfSensors,gSensorAddresses);
+	sensorMenuItem();
+}
+
+void saveSensor(byte idx,byte address[])
+{
+	int addr=SensorAddressOf(idx);
+	for(byte i=0;i<8;i++)
+		updateSetting(addr+i,address[i]);
+}
+
+void sensorMenuEventHandler(byte)
+{
+	if(_sensorSettingIndex==0  && gSensorNumber==0)
+	{
+		if(btnIsEnterPressed){			
+			uiClearSettingRow();
+			switchApplication(SETUP_SCREEN);
+			return;
+		}
+	}
+	
+	if(_sensorSettingIndex==0)
+	{
+		if(btnIsUpPressed){
+			if(_sensorSelection> 0)
+			{
+				_sensorSelection --;
+				uiSettingSensorAddress(gSensorAddresses[_sensorSelection],gTemperatureReading[_sensorSelection]);
+				if(_sensorSelection ==0)
+					uiButtonLabel(ButtonLabel(x_Down_x_Ok));
+				else
+					uiButtonLabel(ButtonLabel(Up_Down_x_Ok));
+
+			}
+		}else if(btnIsDownPressed){
+			if(_sensorSelection < (gSensorNumber -1))
+			{
+				_sensorSelection++;
+				uiSettingSensorAddress(gSensorAddresses[_sensorSelection],gTemperatureReading[_sensorSelection]);
+
+				if(_sensorSelection ==  (gSensorNumber -1))
+					uiButtonLabel(ButtonLabel(Up_x_x_Ok));
+				else
+					uiButtonLabel(ButtonLabel(Up_Down_x_Ok));
+
+			}
+		}else if(btnIsEnterPressed){
+			saveSensor(_sensorSettingAux,gSensorAddresses[_sensorSelection]);
+			updateSetting(CalibrationAddressOf(_sensorSettingAux),50); // zero
+			_sensorSettingAux++;
+#if SerialDebug == true
+		Serial.print("_sensorSettingAux:");
+		Serial.print(_sensorSettingAux);
+		Serial.print(" gSensorNumber=");
+		Serial.println(gSensorNumber);
+#endif
+
+			if(_sensorSettingAux >= gSensorNumber){
+				// next item
+				_sensorSettingIndex ++;
+				_sensorSettingAux=0;
+			}
+			sensorMenuItem();
+		}
+	}
+	else // all after
+	{
+		if(btnIsUpPressed){
+			if(_sensorSelection> 0)
+			{
+				_sensorSelection --;
+				uiSettingDisplayNumber((float)_sensorSelection+1,0);
+			}
+		}else if(btnIsDownPressed){
+			if(_sensorSelection < (gSensorNumber -1))
+			{
+				_sensorSelection++;
+				uiSettingDisplayNumber((float)_sensorSelection+1,0);
+			}
+		}else if(btnIsEnterPressed){
+			// save
+			if(_sensorSettingAux ==0){
+				updateSetting(PS_SensorUseAddressOf(_sensorSettingIndex -1),_sensorSelection);
+				_sensorSettingAux=1;
+			}else{
+				updateSetting(PS_AuxSensorAddressOf(_sensorSettingIndex -1),_sensorSelection);
+				_sensorSettingIndex++;
+				_sensorSettingAux=0;
+			}
+			
+			
+			if(_sensorSettingIndex > 5)
+			{
+				uiClearSettingRow();
+				switchApplication(SETUP_SCREEN);
+				// reaload sensor
+				loadSensorSetting();
+				return;
+			}
+			sensorMenuItem();
+		}
+	}
+}
+#endif //MaximumNumberOfSensors
+// *************************
 //*  Level 1 Menu (settings)
 // *************************
 
 str_t const level1Menu[]={STR(PID_PWM),STR(Unit_Parameters),STR(Set_Automation)
+#if MaximumNumberOfSensors > 1
+,STR(Sensor_Setting)
+#endif
 #if BT_Menu == true
 ,STR(BT_Setup)
 #endif
 };
-/*const byte level1Screens[]={PID_SETTING_SCREEN,UNIT_SETTING_SCREEN,AUTO_SETTING_SCREEN
-#if BT_Menu == true
-,BT_MENU_SCREEN
-#endif
-};
-*/
+
 void menuDisplayList(byte index)
 {
 	byte menuNO=(sizeof(level1Menu) / sizeof(char const*)) -1;
@@ -2267,6 +2653,10 @@ void menuEventHandler(byte event)
 			switchApplication(UNIT_SETTING_SCREEN);
 		else if(_currentLevelOne ==2) 
 			switchApplication(AUTO_SETTING_SCREEN);
+#if MaximumNumberOfSensors > 1
+		else if(_currentLevelOne ==3) 
+			switchApplication(SENSOR_SCREEN);
+#endif
 #if BT_Menu == true
 		else if(_currentLevelOne ==3) 
 			switchApplication(BT_MENU_SCREEN);
@@ -2783,6 +3173,10 @@ void autoModeEnterMashIn(void)
 	
 	if(readSetting(PS_PumpPreMash)) pumpOn();
 	else pumpOff();
+
+#if MaximumNumberOfSensors > 1
+	setSensorForStage(SensorPreMash);
+#endif
 	
 	// start heat
 	heatOn();	
@@ -2952,11 +3346,18 @@ void autoModeNextMashingStep(void)
 		// pump is off at the time AddMalt
 		if(readSetting(PS_PumpOnMash)) pumpOn();
 		else pumpOff();
+#if MaximumNumberOfSensors > 1
+	setSensorForStage(SensorMash);
+#endif
+		
 	}
 	else if(_mashingStep ==7)
 	{
 		if(readSetting(PS_PumpOnMashOut)) pumpOn();
 		else pumpOff();
+#if MaximumNumberOfSensors > 1
+	setSensorForStage(SensorMashOut);
+#endif
 	}
 	
 #if	MANUAL_PUMP_MASH == true
@@ -3239,6 +3640,11 @@ void autoModeEnterBoiling(void)
 	
 	if(readSetting(PS_PumpOnBoil)) pumpOn();
 	else pumpOff();
+
+#if MaximumNumberOfSensors > 1
+	setSensorForStage(SensorBoil);
+#endif
+	
 	#if DEVELOP_SETTING_VALUE == true
 	setAdjustTemperature(110.0,10.0);
 	#else
@@ -3442,7 +3848,10 @@ void autoModeEnterCooling(void)
 	
 	setAdjustTemperature(30,10);
 	_isEnterPwm=false;
-	
+
+#if MaximumNumberOfSensors > 1
+	setSensorForStage(SensorCooling);
+#endif	
 }
 #if NoWhirlpool != true
 #define MAX_WHIRLPOOL_TIME 10
@@ -4705,3 +5114,4 @@ void loop() {
 
 }// end of loop();
 #endif
+

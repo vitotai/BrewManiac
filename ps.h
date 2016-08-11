@@ -93,6 +93,19 @@
 #define PS_StageTimeLeft    86 //      HANDLE Time Rest
 #define PS_HopAdd    87     //  Hop Add
 
+
+#define PS_SensorUseBase    90 
+#define PS_SensorUseAddressOf(i)    (PS_SensorUseBase+(i)) 
+
+#define PS_SensorAuxBase    95 
+#define PS_AuxSensorAddressOf(i)    (PS_SensorAuxBase+(i)) 
+
+#define PS_SensorAddressBase    100 
+#define SensorAddressOf(i) ((i)*8 + PS_SensorAddressBase)
+
+#define PS_SensorCalibrationAddressBase    140
+#define CalibrationAddressOf(i) ((i) + PS_SensorCalibrationAddressBase)
+
 //    88 -  89 [ SPACE ]
 /*
   RECIPE

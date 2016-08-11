@@ -11,6 +11,8 @@
 
 #ifndef UI_H
 #define UI_H
+#define INVALID_TEMP_C -127
+#define IS_TEMP_INVALID(t) ((t)<-120.0)
 
 #define LCD_COLUMN_NUM 20
 
@@ -28,6 +30,10 @@ byte _uiTpDisplayRow;
 byte _uiTpDisplayCol;
 boolean _uiDisplayTemperature;
 
+#if MaximumNumberOfSensors > 1
+byte _uiAuxTpDisplayRow;
+byte _uiAuxTpDisplayCol;
+#endif
 
 //boolean _uiShowCountingTime;
 #define COUNTING_PAUSE 0
@@ -358,6 +364,7 @@ void uiSetIp(byte ip[])
 
 #endif
 
+
 //********************************************************
 //* for update temperature and time on screen
 //********************************************************
@@ -377,12 +384,30 @@ void uiTempDisplayHide(void)
 	_uiDisplayTemperature=false;
 }
 
+#if MaximumNumberOfSensors > 1
+
 const byte TemperatureDisplayPos[] PROGMEM=
 {
-	6,1,
-	1,1,
-	7,0
+	2,1,  // Idle/Main screen
+	1,1,  // Auto mode & Manual mode
+	3,0   // Paused mode
 };
+
+const byte AuxTemperatureDisplayPos[] PROGMEM=
+{
+	10,1,  // Idle/Main screen
+	1,2,  // Auto mode & Manual mode
+	10,0   // Paused mode
+};
+
+#else
+const byte TemperatureDisplayPos[] PROGMEM=
+{
+	6,1,  // Idle/Main screen
+	1,1,  // Auto mode & Manual mode
+	7,0   // Paused mode
+};
+#endif
 
 #define TemperatureMainScreenPosition 0
 #define TemperatureManualModePosition 1
@@ -393,8 +418,13 @@ void uiTempDisplaySetPosition(byte index)
 {
    _uiDisplayTemperature=true;
 
-   _uiTpDisplayRow=pgm_read_byte_near(TemperatureDisplayPos + index*2 +1);
-   _uiTpDisplayCol=pgm_read_byte_near(TemperatureDisplayPos + index*2);   
+   _uiTpDisplayRow=pgm_read_byte_near(& TemperatureDisplayPos[index*2 +1]);
+   _uiTpDisplayCol=pgm_read_byte_near(& TemperatureDisplayPos[index*2]);   
+   
+ #if MaximumNumberOfSensors > 1 
+   _uiAuxTpDisplayRow=pgm_read_byte_near(& AuxTemperatureDisplayPos[index*2 +1]);
+   _uiAuxTpDisplayCol=pgm_read_byte_near(& AuxTemperatureDisplayPos[index*2]);   
+ #endif 
 }
 
 //****************************
@@ -516,34 +546,48 @@ void uiRunningTimeBlink(boolean blink)
 }
 
 #endif
-
-void uiDisplayTemperatureAndRunningTime(void)
+void uiPrintTemperature(double displayTemp)
 {
-    if(_uiDisplayTemperature)
+    if(IS_TEMP_INVALID(displayTemp))
     {
-    	float displayTemp=gCurrentTemperature;
-    	
+        for(byte i=0;i<2;i++) lcd.write(' ');
+        for(byte i=0;i<4;i++) lcd.write('-');
+    }
+    else
+    {
     	if(gIsUseFahrenheit) 
     	{
     		displayTemp = ConvertC2F(gCurrentTemperature);
     	}
         
-        #if NoPrint == true
-        byte digitNum=sprintFloat((char*)_uibuffer,displayTemp,2);
+       	#if NoPrint == true
+       	byte digitNum=sprintFloat((char*)_uibuffer,displayTemp,2);
          
-        lcd.setCursor(_uiTpDisplayCol,_uiTpDisplayRow);
-        for(byte i=0;i< 6 - digitNum;i++) lcd.write(' ');
-        for(byte i=0;i< digitNum;i++) lcd.write(_uibuffer[i]);
+       	for(byte i=0;i< 6 - digitNum;i++) lcd.write(' ');
+       	for(byte i=0;i< digitNum;i++) lcd.write(_uibuffer[i]);
 
-        #else
-        int digitNum=numberOfDigitFloat(displayTemp,2);
+       	#else
+       	int digitNum=numberOfDigitFloat(displayTemp,2);
          
-        lcd.setCursor(_uiTpDisplayCol,_uiTpDisplayRow);
-        for(int i=0;i< 6 - digitNum;i++) lcd.write(' ');
-        lcd.print(displayTemp,2);
-        #endif
-        
+       	for(int i=0;i< 6 - digitNum;i++) lcd.write(' ');
+       	lcd.print(displayTemp,2);
+       	#endif
+	}
+}
+
+void uiDisplayTemperatureAndRunningTime(void)
+{
+    if(_uiDisplayTemperature)
+    {
+       	lcd.setCursor(_uiTpDisplayCol,_uiTpDisplayRow);
+    	uiPrintTemperature(gCurrentTemperature);
         lcd.write(LcdCharDegree);
+#if MaximumNumberOfSensors > 1
+       	lcd.setCursor(_uiAuxTpDisplayCol,_uiAuxTpDisplayRow);
+		uiPrintTemperature(gAuxTemperature);
+        lcd.write(LcdCharDegree);
+#endif        
+
     }
 #if SupportRunningTimeBlink == true
 			if(_runningTimeBlinking)
@@ -825,6 +869,31 @@ void uiClearScreen(void)
 	
 }
 
+
+#if MaximumNumberOfSensors > 1
+void uiSettingSensorIndex(byte num)
+{
+	lcd.setCursor(1,2);
+	lcd.write('#');
+	lcd.write('1' + num);
+}
+
+#define HexCode(a)  ((a)<10)? ('0'+(a)):('A'+(a)-10)
+
+void uiSettingSensorAddress(byte address[],double temp)
+{
+ // only print 4 bytes(8 digit hex)
+	lcd.setCursor(4,2);
+	for(byte i=4;i<8;i++)
+	{
+		lcd.write( HexCode(address[i] >> 4));
+		lcd.write( HexCode(address[i] & 0xF));
+	}
+	uiSettingShowTemperature(temp,0);
+}
+
+#endif
+
 #if WirelessSupported == true
 void wiSendButtonLabel(const byte labelId);
 #endif
@@ -872,15 +941,23 @@ void uiClearPwmDisplay(void)
 
 void uiShowPwmLabel(void)
 {
+#if	MaximumNumberOfSensors > 1
+	lcd.setCursor(1,10);
+	lcd.write('%');
+#else
 	lcd.setCursor(1,2);
 	LCD_print_P(STR(PWM_Is));
+#endif
 }
 
 void uiShowPwmValue(byte pwm)
 {
 	// make it simple, should optimize later
+#if	MaximumNumberOfSensors > 1
+	lcd.setCursor(7,2);
+#else
 	lcd.setCursor(5,2);
-	
+#endif	
 	
 	lcd.write((pwm==100)? '1':' ');
 	if(pwm==100) lcd.write('0');
@@ -984,10 +1061,18 @@ void uiPreparePasueScreen(str_t message)
 	uiClearScreen();	
 
 	byte i;
+#if MaximumNumberOfSensors > 1
+	lcd.setCursor(0,0);
+	for(i=0;i<3;i++) lcd.write('-');
+	lcd.setCursor(17,0);
+	for(i=0;i<3;i++) lcd.write('-');
+#else //#if MaximumNumberOfSensors > 1
 	lcd.setCursor(0,0);
 	for(i=0;i<5;i++) lcd.write('-');
 	lcd.setCursor(15,0);
 	for(i=0;i<5;i++) lcd.write('-');
+#endif //#if MaximumNumberOfSensors > 1
+
 	lcd.setCursor(1,2);
 	for(i=0;i<4;i++) lcd.write('-');
 	lcd.setCursor(15,2);

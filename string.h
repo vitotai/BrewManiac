@@ -100,6 +100,10 @@ DefineButtonLabel( Up_Down_RUN_Pmp,   "UP* *DWN  RUN  Pmp",27);
 #if SimpleMashStep == true
 DefineButtonLabel( Up_Down_End_More,  "UP* *DWN Done More",28);
 #endif
+
+DefineButtonLabel( Up_x_x_Ok,  		  "Up   ---  ---   Ok",29);
+DefineButtonLabel( x_Down_x_Ok,   	  "---  Dwn  ---   Ok",30);
+
 // end of menu
 
 StringConst( Manual_Mode ,"MANUAL MODE");
@@ -120,7 +124,13 @@ StringConst( kD, "Constant kD");
 StringConst( SampleTime, "SampleTime");
 StringConst( WindowSet_ms, "WindowSet ms");
 StringConst( Heat_in_Boil, "Heat in Boil");
+
+#if MaximumNumberOfSensors > 1
+StringConst( Calibration, "Cal.#");
+#else
 StringConst( Calibration, "Calibration");
+#endif
+
 StringConst( Hysteresi, "Hysteresi");
 
 
@@ -176,4 +186,21 @@ StringConst( Manage_Recipes, "Manage Recipes");
 StringConst(Mash_x,"Mash ");
 #endif
 
+#if MaximumNumberOfSensors > 1
+StringConst(Sensor_Setting, "Sensor Setting");
+
+StringConst(Sensor_PreMash, "PreMash Primary");
+StringConst(Sensor_Mash, 	"Mash Primary");
+StringConst(Sensor_MashOut, "MashOut Primary");
+StringConst(Sensor_Boil,    "Boil Primary");
+StringConst(Sensor_Cooling,    "Colling Primary");
+
+StringConst(AuxSensor_PreMash, "PreMash Aux");
+StringConst(AuxSensor_Mash,    "Mash Aux");
+StringConst(AuxSensor_MashOut, "MashOut Aux");
+StringConst(AuxSensor_Boil,    "Boil Aux");
+StringConst(AuxSensor_Cooling,    "Colling Aux");
+
+StringConst(No_Sensor_Found, "No Sensor Found");
+#endif // MaximumNumberOfSensors > 1
 #endif
