@@ -219,8 +219,9 @@ const byte SensorPin=7;
 #define BT_AutoBaudRate false
 #define BT_MODULE_INITIALIZATION false
 #define BT_Menu false
-#endif //over write stting for test board
 #define SerialDebug false
+
+#endif //over write stting for test board
 //}debug
 // *************************
 //*  global variables
@@ -2007,12 +2008,19 @@ void settingAutomationDisplayItem(void)
 		//9. boil time
 		//10. time hop number #
 	
+#if SimpleMashStep == true
 	if( _editingStageAux == 1   // 1:time editing of stage 1 to 5, step 6 has no End, nor More optoin
 		&& _editingStage>0 && _editingStage < 6) // except MashIn/MashOut, and in Temperature editing
 		uiButtonLabel(ButtonLabel(Up_Down_End_More));
 	else
 		uiButtonLabel(ButtonLabel(Up_Down_x_Ok));
-			
+#else
+	if( _editingStageAux == 0   // 1:time editing of stage 1 to 5, step 6 has no End, nor More optoin
+		&& _editingStage>0 && _editingStage < 6) // except MashIn/MashOut, and in Temperature editing
+		uiButtonLabel(ButtonLabel(Up_Down_Skip_Ok));
+	else
+		uiButtonLabel(ButtonLabel(Up_Down_x_Ok));
+#endif
 	if(_editingStage ==0)
 	{
 		// Mash In:temp only
@@ -2435,6 +2443,14 @@ void btMenuEventHandler(byte event)
 
 byte _sensorSelection;
 
+void sensorMenuSelectSensorButtonChange(void)
+{
+	if(gSensorNumber==1) uiButtonLabel(ButtonLabel(x_x_x_Ok));
+	else if( _sensorSelection==0) uiButtonLabel(ButtonLabel(x_Down_x_Ok));
+	else if( _sensorSelection ==(gSensorNumber-1)) uiButtonLabel(ButtonLabel(Up_x_x_Ok));
+	else uiButtonLabel(ButtonLabel(Up_Down_x_Ok));
+}
+
 void sensorMenuItem(void)
 {
 	if(_sensorSettingIndex ==0)
@@ -2485,7 +2501,7 @@ void sensorMenuItem(void)
 		}	
 		_sensorSelection=0;
 		uiSettingDisplayNumber((float)_sensorSelection+1,0);
-		uiButtonLabel(ButtonLabel(Up_Down_x_Ok));
+		sensorMenuSelectSensorButtonChange();
 	}
 }
 
@@ -2503,6 +2519,7 @@ void saveSensor(byte idx,byte address[])
 	for(byte i=0;i<8;i++)
 		updateSetting(addr+i,address[i]);
 }
+
 
 void sensorMenuEventHandler(byte)
 {
@@ -2566,12 +2583,14 @@ void sensorMenuEventHandler(byte)
 			{
 				_sensorSelection --;
 				uiSettingDisplayNumber((float)_sensorSelection+1,0);
+				sensorMenuSelectSensorButtonChange();
 			}
 		}else if(btnIsDownPressed){
 			if(_sensorSelection < (gSensorNumber -1))
 			{
 				_sensorSelection++;
 				uiSettingDisplayNumber((float)_sensorSelection+1,0);
+				sensorMenuSelectSensorButtonChange();
 			}
 		}else if(btnIsEnterPressed){
 			// save

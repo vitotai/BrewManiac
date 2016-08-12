@@ -889,6 +889,7 @@ void uiSettingSensorAddress(byte address[],double temp)
 		lcd.write( HexCode(address[i] >> 4));
 		lcd.write( HexCode(address[i] & 0xF));
 	}
+	lcd.write(' ');
 	uiSettingShowTemperature(temp,0);
 }
 
