@@ -905,11 +905,14 @@ float  _readTemperature(byte *addr)
     float temperature = (raw & 0xFFFC) * 0.0625;
     return temperature;
 }
-#define SensorPreMash 0
-#define SensorMash 1
-#define SensorMashOut 2
-#define SensorBoil 3
-#define SensorCooling 4
+#define SensorForIdle 0
+#define SensorForPreMash 1
+#define SensorForMash 2
+#define SensorForMashOut 3
+#define SensorForBoil 4
+#define SensorForCooling 5
+#define SensorForManual 6
+
 
 void setSensorForStage(byte s)
 {
@@ -2464,41 +2467,54 @@ void sensorMenuItem(void)
 		_sensorSelection=0;
 		uiSettingSensorIndex(_sensorSettingAux);
 		uiSettingSensorAddress(gSensorAddresses[_sensorSelection],gTemperatureReading[_sensorSelection]);
+		sensorMenuSelectSensorButtonChange();
+		/*
 		if(gSensorNumber ==1)
 			uiButtonLabel(ButtonLabel(x_x_x_Ok));
 		else
-			uiButtonLabel(ButtonLabel(x_Down_x_Ok));
+			uiButtonLabel(ButtonLabel(x_Down_x_Ok));*/
 	}
 	else 
 	{
 		if(_sensorSettingIndex ==1){
 			if(_sensorSettingAux==0)
+				uiSettingTitle(STR(Sensor_Idle));
+			else
+				uiSettingTitle(STR(AuxSensor_Idle));
+
+		}else if(_sensorSettingIndex ==2){
+			if(_sensorSettingAux==0)
 				uiSettingTitle(STR(Sensor_PreMash));
 			else
 				uiSettingTitle(STR(AuxSensor_PreMash));
-		}else if(_sensorSettingIndex ==2){
+		}else if(_sensorSettingIndex ==3){
 			if(_sensorSettingAux==0)
 				uiSettingTitle(STR(Sensor_Mash));
 			else
 				uiSettingTitle(STR(AuxSensor_Mash));
-		}else if(_sensorSettingIndex ==3){
+		}else if(_sensorSettingIndex ==4){
 			if(_sensorSettingAux==0)
 				uiSettingTitle(STR(Sensor_MashOut));
 			else
 				uiSettingTitle(STR(AuxSensor_MashOut));
 
-		}else if(_sensorSettingIndex ==4){
+		}else if(_sensorSettingIndex ==5){
 			if(_sensorSettingAux==0)
 				uiSettingTitle(STR(Sensor_Boil));
 			else
 				uiSettingTitle(STR(AuxSensor_Boil));
 
-		}else{  // 5
+		}else  if(_sensorSettingIndex ==6){  // 6
 			if(_sensorSettingAux==0)
 				uiSettingTitle(STR(Sensor_Cooling));
 			else
 				uiSettingTitle(STR(AuxSensor_Cooling));
-		}	
+		}else{
+			if(_sensorSettingAux==0)
+				uiSettingTitle(STR(Sensor_Manual));
+			else
+				uiSettingTitle(STR(AuxSensor_Manual));
+		}
 		_sensorSelection=0;
 		uiSettingDisplayNumber((float)_sensorSelection+1,0);
 		sensorMenuSelectSensorButtonChange();
@@ -2539,10 +2555,12 @@ void sensorMenuEventHandler(byte)
 			{
 				_sensorSelection --;
 				uiSettingSensorAddress(gSensorAddresses[_sensorSelection],gTemperatureReading[_sensorSelection]);
+				sensorMenuSelectSensorButtonChange();
+				/*
 				if(_sensorSelection ==0)
 					uiButtonLabel(ButtonLabel(x_Down_x_Ok));
 				else
-					uiButtonLabel(ButtonLabel(Up_Down_x_Ok));
+					uiButtonLabel(ButtonLabel(Up_Down_x_Ok));*/
 
 			}
 		}else if(btnIsDownPressed){
@@ -2550,11 +2568,12 @@ void sensorMenuEventHandler(byte)
 			{
 				_sensorSelection++;
 				uiSettingSensorAddress(gSensorAddresses[_sensorSelection],gTemperatureReading[_sensorSelection]);
-
+				sensorMenuSelectSensorButtonChange();
+				/*
 				if(_sensorSelection ==  (gSensorNumber -1))
 					uiButtonLabel(ButtonLabel(Up_x_x_Ok));
 				else
-					uiButtonLabel(ButtonLabel(Up_Down_x_Ok));
+					uiButtonLabel(ButtonLabel(Up_Down_x_Ok));*/
 
 			}
 		}else if(btnIsEnterPressed){
@@ -2604,7 +2623,7 @@ void sensorMenuEventHandler(byte)
 			}
 			
 			
-			if(_sensorSettingIndex > 5)
+			if(_sensorSettingIndex > SensorForManual)
 			{
 				uiClearSettingRow();
 				switchApplication(SETUP_SCREEN);
@@ -2880,6 +2899,10 @@ void manualModeSetup(void)
 	gSettingTemperature = DEFAULT_MANUL_MODE_TEMPERATURE;
 	#if WirelessSupported == true
 	wiReportSettingTemperature();
+	#endif
+
+	#if MaximumNumberOfSensors > 1
+	setSensorForStage(SensorForManual);
 	#endif
 }
 
@@ -3194,7 +3217,7 @@ void autoModeEnterMashIn(void)
 	else pumpOff();
 
 #if MaximumNumberOfSensors > 1
-	setSensorForStage(SensorPreMash);
+	setSensorForStage(SensorForPreMash);
 #endif
 	
 	// start heat
@@ -3366,7 +3389,7 @@ void autoModeNextMashingStep(void)
 		if(readSetting(PS_PumpOnMash)) pumpOn();
 		else pumpOff();
 #if MaximumNumberOfSensors > 1
-	setSensorForStage(SensorMash);
+	setSensorForStage(SensorForMash);
 #endif
 		
 	}
@@ -3375,7 +3398,7 @@ void autoModeNextMashingStep(void)
 		if(readSetting(PS_PumpOnMashOut)) pumpOn();
 		else pumpOff();
 #if MaximumNumberOfSensors > 1
-	setSensorForStage(SensorMashOut);
+	setSensorForStage(SensorForMashOut);
 #endif
 	}
 	
@@ -3661,7 +3684,7 @@ void autoModeEnterBoiling(void)
 	else pumpOff();
 
 #if MaximumNumberOfSensors > 1
-	setSensorForStage(SensorBoil);
+	setSensorForStage(SensorForBoil);
 #endif
 	
 	#if DEVELOP_SETTING_VALUE == true
@@ -3869,7 +3892,7 @@ void autoModeEnterCooling(void)
 	_isEnterPwm=false;
 
 #if MaximumNumberOfSensors > 1
-	setSensorForStage(SensorCooling);
+	setSensorForStage(SensorForCooling);
 #endif	
 }
 #if NoWhirlpool != true
@@ -4899,6 +4922,10 @@ void mainSetup(void)
 	    
     #if WirelessSupported == true
     wiReportCurrentStage(StageIdleScreen);
+    #endif
+    
+    #if MaximumNumberOfSensors > 1
+    setSensorForStage(SensorForIdle);
     #endif
 }
 

@@ -188,6 +188,7 @@ StringConst(Mash_x,"Mash ");
 
 #if MaximumNumberOfSensors > 1
 StringConst(Sensor_Setting, "Sensor Setting");
+StringConst(No_Sensor_Found, "No Sensor Found");
 
 StringConst(Sensor_PreMash, "PreMash Primary");
 StringConst(Sensor_Mash, 	"Mash Primary");
@@ -201,6 +202,10 @@ StringConst(AuxSensor_MashOut, "MashOut Aux");
 StringConst(AuxSensor_Boil,    "Boil Aux");
 StringConst(AuxSensor_Cooling,    "Colling Aux");
 
-StringConst(No_Sensor_Found, "No Sensor Found");
+StringConst(Sensor_Idle, "Idle Primary");
+StringConst(AuxSensor_Idle,   "Idle Aux");
+StringConst(Sensor_Manual, "Manual Primary");
+StringConst(AuxSensor_Manual,   "Manual Aux");
+
 #endif // MaximumNumberOfSensors > 1
 #endif
