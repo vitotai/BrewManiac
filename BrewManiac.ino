@@ -49,7 +49,11 @@ const byte SoftwareSerialRx = 10;
 const byte SoftwareSerialTx = 11;
 #endif
 
+#if UseSoftwareSerial == true
 #define WiFiSerialBaudRate 38400
+#else
+#define WiFiSerialBaudRate 115200
+#endif
 
 /* this option is not used if  UseSoftwareSerial == true */
 #define WirelessHardwarePort Serial
@@ -68,7 +72,7 @@ const byte SensorPin=7;
 #define ButtonEnterPin  A0
 // use Serial1
 #define UseSoftwareSerial false
-#define WirelessHardwarePort Serial
+#define WirelessHardwarePort Serial1
 #endif
 
 #if BOARD == UNOTEST
@@ -3063,7 +3067,7 @@ void autoModeEnterAskRemoveMalt(void)
 	
 	buzzPlaySoundRepeat(SoundIdWaitUserInteraction);
 
-	if(readSetting(PS_PidPipe) == 1 && readSetting(PS_SensorType) == 0)
+	if(!(readSetting(PS_PidPipe) == 1 && readSetting(PS_SensorType) == 0))
 		heatProgramOff(); // heat off, programming
 	
 	#if WirelessSupported == true
